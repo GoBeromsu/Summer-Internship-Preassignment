@@ -3,18 +3,18 @@ FROM python:3.8-slim
 RUN apt-get update && apt-get install -y git ffmpeg && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
-COPY requirements.txt /app/
+COPY requirements.txt ./
+
+RUN pip install --upgrade pip && pip install -r requirements.txt
+
+COPY metadrive /app/metadrive/
+RUN pip install -e ./metadrive
+
 COPY src /app/src/
-COPY pyproject.toml /app/
 
-# Install project requirements
-RUN pip install --upgrade pip && pip install -e .
+RUN mkdir -p /app/outputs && chmod 777 /app/outputs
 
-# Clone MetaDrive repository directly from GitHub (recommended method)
-RUN git clone https://github.com/metadriverse/metadrive.git --single-branch
+ENTRYPOINT ["python", "-m", "src.main"]
+CMD ["--map", "10", "--num-scenarios", "3", "--output-type", "png", "--output-dir", "/app/outputs"]
 
-# Install MetaDrive from source
-RUN cd metadrive && pip install -e .
-
-# Define the entrypoint to run MetaDrive simulation
-ENTRYPOINT ["python", "src/metadrive/run.py"]
+VOLUME ["/app/outputs"]
