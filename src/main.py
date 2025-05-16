@@ -33,7 +33,7 @@ def parse_args():
     parser.add_argument("--output-type", type=str, default="png", choices=["png", "gif"], 
                         help="Visual output format (JSON metrics are always saved)")
     parser.add_argument("--output-dir", type=str, default="outputs", 
-                        help="Directory to save all outputs")
+                        help="Base directory for outputs (will create /single and /benchmark subdirectories)")
     parser.add_argument("--render-mode", action="store_true", 
                         help="Render on screen (not recommended in Docker)")
     parser.add_argument("--benchmark", type=int, default=100,
@@ -48,7 +48,6 @@ def main():
 
     args = parse_args()
     
-    # Create output directory
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     
@@ -56,9 +55,7 @@ def main():
         print(f"Running benchmark with {args.benchmark} iterations...")
         print(f"Map blocks: {args.map}, Starting seed: {args.seed}")
         print(f"Output format: {args.output_type} + JSON metrics")
-        print(f"Output directory: {output_dir.absolute()}")
         
-        # Run benchmark
         summary = generate_maps_benchmark(
             args=args,
             iterations=args.benchmark,
@@ -72,17 +69,13 @@ def main():
         print(f"Generating {args.num_scenarios} scenarios with {args.map} blocks each")
         print(f"Starting seed: {args.seed}")
         print(f"Output format: {args.output_type} + JSON metrics")
-        print(f"Output directory: {output_dir.absolute()}")
         
-        # Generate maps with the refactored function
         generate_single_map(
             args=args,
             output_dir=args.output_dir,
             output_type=args.output_type,
         )
         
-        print(f"\nScenario generation complete. Results saved to {output_dir.absolute()}")
-    
     return 0
 
 
