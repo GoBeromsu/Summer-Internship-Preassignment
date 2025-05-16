@@ -7,8 +7,10 @@ COPY requirements.txt ./
 
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
-COPY metadrive /app/metadrive/
-RUN pip install -e ./metadrive
+# Clone and install metadrive
+RUN git clone https://github.com/metadriverse/metadrive.git --single-branch && \
+    pip install -e ./metadrive && \
+    python -m metadrive.pull_asset
 
 COPY src /app/src/
 

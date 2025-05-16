@@ -2,6 +2,21 @@ import argparse
 import sys
 from pathlib import Path
 from src.meta import generate_maps_batch
+import subprocess
+
+def setup_metadrive():
+    metadrive_path = Path("metadrive")
+    if not metadrive_path.exists():
+        print("MetaDrive not found. Installing...")
+        subprocess.run(
+            ["git", "clone", "https://github.com/metadriverse/metadrive.git", "--single-branch"],
+            check=True
+        )
+        subprocess.run(["pip", "install", "-e", "./metadrive"], check=True)
+        subprocess.run(["python", "-m", "metadrive.pull_asset"], check=True)
+        print("MetaDrive installed successfully!")
+    else:
+        print("MetaDrive already exists.")
 
 
 def parse_args():
@@ -26,7 +41,9 @@ def parse_args():
 
 
 def main():
-    # Parse command line arguments
+    if not Path("metadrive").exists():
+        setup_metadrive()
+
     args = parse_args()
     
     # Create output directory

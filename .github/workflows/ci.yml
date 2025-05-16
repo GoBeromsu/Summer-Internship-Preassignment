@@ -26,6 +26,6 @@ jobs:
       - name: Set up Docker
         uses: docker/setup-buildx-action@v2
 
-      - name: Run MetaDrive Docker smoke test
+      - name: Run MetaDrive Docker test
         run: |
           pytest tests/test_metadrive.py -v
