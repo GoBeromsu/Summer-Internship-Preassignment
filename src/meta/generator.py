@@ -2,8 +2,8 @@ import time
 import statistics
 from pathlib import Path
 from metadrive.envs.metadrive_env import MetaDriveEnv
-from src.meta.utils import make_env_config, save_map, save_json, find_next_index
-
+from src.meta.utils import make_env_config, save_map, save_json
+from collections import Counter
 
 def generate_single_map(
     args,
@@ -24,8 +24,6 @@ def generate_single_map(
     output_dir = Path(output_dir) / "single" / f"blocks{args.map}"
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    file_idx = find_next_index(output_dir)
-    
     # Create environment with explicit seed
     config = make_env_config(args)
     env = MetaDriveEnv(config)
@@ -33,7 +31,6 @@ def generate_single_map(
     metrics = generate_random_map(
         env=env,
         seed=args.seed,
-        file_idx=file_idx,
         map_blocks=args.map,
         output_dir=output_dir,
         output_type=output_type
@@ -80,7 +77,6 @@ def generate_maps_benchmark(
     for i in range(iterations):
         # Calculate seed for this iteration
         current_seed = base_seed + i
-        file_idx = i
         
         # Create environment with specific seed (without modifying args)
         config = make_env_config(args, seed=current_seed)
@@ -89,7 +85,6 @@ def generate_maps_benchmark(
         metrics = generate_random_map(
             env=env,
             seed=current_seed,
-            file_idx=file_idx,
             map_blocks=args.map,
             output_dir=benchmark_dir,
             output_type=output_type
@@ -137,7 +132,6 @@ def generate_maps_benchmark(
 def generate_random_map(
         env,
         seed,
-        file_idx,
         map_blocks,
         output_dir="outputs",
         output_type="png"
@@ -146,27 +140,28 @@ def generate_random_map(
     output_dir = Path(output_dir)
     
     t0 = time.time()
-    
-    # Reset the environment with the explicit seed
     env.reset(seed=seed)
+    t1 = time.time()
     
-    # Initialize metrics
+    block_sequence = [block.ID for block in env.current_map.blocks]
+    block_type_counts = dict(Counter(block_sequence))
+    
     metrics = {
-        "index": file_idx,
         "seed": seed,
-        "map_blocks": map_blocks
+        "map_blocks": map_blocks,
+        "block_sequence": block_sequence,
+        "block_type_counts": block_type_counts,
+        "time_elapsed": round(t1 - t0, 3)
     }
     
 
     save_map(
         env=env,
         output_dir=output_dir,
-        file_idx=file_idx,
+        file_idx=seed,
         output_type=output_type
     )
     
-    t1 = time.time()
-    metrics.update({"time_elapsed": round(t1 - t0, 3)})
-    print(f"[✓] Generated map {file_idx}: seed={seed}, blocks={map_blocks}, time={metrics['time_elapsed']}s")
+    print(f"[✓] Generated map: seed={seed}, blocks={map_blocks}, time={metrics['time_elapsed']}s")
     
     return metrics
