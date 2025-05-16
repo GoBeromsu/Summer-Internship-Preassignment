@@ -1,9 +1,8 @@
 import time
-import json
 import statistics
 from pathlib import Path
 from metadrive.envs.metadrive_env import MetaDriveEnv
-from src.meta.utils import make_env_config, save_map_outputs
+from src.meta.utils import make_env_config, save_map, save_json, find_next_index
 
 
 def generate_single_map(
@@ -25,14 +24,7 @@ def generate_single_map(
     output_dir = Path(output_dir) / "single" / f"blocks{args.map}"
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    # Find the next available index
-    existing_files = list(output_dir.glob("metrics_*.json"))
-    if existing_files:
-        # Extract indices from filenames and find max
-        indices = [int(f.stem.split('_')[1]) for f in existing_files if f.stem.split('_')[1].isdigit()]
-        file_idx = max(indices) + 1 if indices else 0
-    else:
-        file_idx = 0
+    file_idx = find_next_index(output_dir)
     
     # Create environment with explicit seed
     config = make_env_config(args)
@@ -49,7 +41,8 @@ def generate_single_map(
     
     # Clean up environment
     env.close()
-    
+    save_json(output_dir / f"metrics_{file_idx:04d}", metrics)
+
     return metrics
 
 
@@ -93,37 +86,29 @@ def generate_maps_benchmark(
         config = make_env_config(args, seed=current_seed)
         env = MetaDriveEnv(config)
         
-        try:
-            metrics = generate_random_map(
-                env=env,
-                seed=current_seed,
-                file_idx=file_idx,
-                map_blocks=args.map,
-                output_dir=benchmark_dir,
-                output_type=output_type
-            )
+        metrics = generate_random_map(
+            env=env,
+            seed=current_seed,
+            file_idx=file_idx,
+            map_blocks=args.map,
+            output_dir=benchmark_dir,
+            output_type=output_type
+        )
             
-            all_metrics.append(metrics)
-            generation_times.append(metrics["time_elapsed"])
+        all_metrics.append(metrics)
+        generation_times.append(metrics["time_elapsed"])
             
-            # Print progress
-            if (i + 1) % 10 == 0:
-                print(f"Progress: {i + 1}/{iterations} iterations completed")
+        # Print progress
+        if (i + 1) % 10 == 0:
+            print(f"Progress: {i + 1}/{iterations} iterations completed")
+
         
-        except Exception as e:
-            print(f"Error in iteration {i} (seed {current_seed}): {e}")
-        
-        finally:
-            env.close()
-    
-    # Calculate summary statistics
-    if generation_times:
-        avg_time = statistics.mean(generation_times)
-        min_time = min(generation_times)
-        max_time = max(generation_times)
-    else:
-        avg_time = min_time = max_time = 0
-    
+        env.close()
+
+    avg_time = statistics.mean(generation_times)
+    min_time = min(generation_times)
+    max_time = max(generation_times)
+
     # Create summary data
     summary = {
         "benchmark_config": {
@@ -139,10 +124,8 @@ def generate_maps_benchmark(
         "individual_metrics": all_metrics
     }
     
-    # Save summary
-    summary_path = benchmark_dir / "benchmark.json"
-    with open(summary_path, "w") as f:
-        json.dump(summary, f, indent=2)
+    # Save summary using the utility function
+    save_json(benchmark_dir / "benchmark", summary)
     
     print(f"\nBenchmark complete. Results saved to {benchmark_dir}")
     print(f"Average generation time: {avg_time:.3f}s")
@@ -152,29 +135,16 @@ def generate_maps_benchmark(
 
 
 def generate_random_map(
-    env,
-    seed,
-    file_idx,
-    map_blocks,
-    output_dir="outputs",
-    output_type="png"
-):
-    """Generate a random map with specific parameters
-    
-    Args:
-        env: MetaDrive environment
-        seed: Random seed for generation
-        file_idx: Index for output filename
-        map_blocks: Number of map blocks
-        output_dir: Output directory
-        output_type: Output format ("png" or "gif")
-        
-    Returns:
-        Map generation metrics
-    """
+        env,
+        seed,
+        file_idx,
+        map_blocks,
+        output_dir="outputs",
+        output_type="png"
+    ):
+
     output_dir = Path(output_dir)
     
-    # Start timing
     t0 = time.time()
     
     # Reset the environment with the explicit seed
@@ -187,30 +157,16 @@ def generate_random_map(
         "map_blocks": map_blocks
     }
     
-    # Save outputs using helper function
-    try:
-        save_map_outputs(
-            env=env,
-            output_dir=output_dir,
-            file_idx=file_idx,
-            output_type=output_type
-        )
-    except Exception as e:
-        print(f"Warning: Failed to save map outputs (seed {seed}): {e}")
+
+    save_map(
+        env=env,
+        output_dir=output_dir,
+        file_idx=file_idx,
+        output_type=output_type
+    )
     
-    # End timing
     t1 = time.time()
-    
-    # Add summary metrics
-    metrics.update({
-        "time_elapsed": round(t1 - t0, 3)
-    })
-
-    # Save JSON metrics
-    metrics_path = output_dir / f"metrics_{file_idx:04d}.json"
-    with open(metrics_path, "w") as f:
-        json.dump(metrics, f, indent=2)
-
+    metrics.update({"time_elapsed": round(t1 - t0, 3)})
     print(f"[✓] Generated map {file_idx}: seed={seed}, blocks={map_blocks}, time={metrics['time_elapsed']}s")
     
     return metrics

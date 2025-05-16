@@ -1,6 +1,7 @@
 from pathlib import Path
 from metadrive.utils.draw_top_down_map import draw_top_down_map
 import matplotlib.pyplot as plt
+import json
 
 
 def make_env_config(args, seed=None):
@@ -26,7 +27,7 @@ def make_env_config(args, seed=None):
     return config
 
 
-def save_map_outputs(
+def save_map(
     env,
     output_dir,
     file_idx,
@@ -45,4 +46,53 @@ def save_map_outputs(
         gif_path = output_dir / f"map_{file_idx:04d}.gif"
         env.render_to_gif(str(gif_path), audio=False, fps=10)
     
-    return True 
+    return True
+
+
+def save_json(filepath, content, indent=2, overwrite=True):
+    path = Path(filepath)
+    path = path.with_suffix('.json')
+    
+    if not overwrite and path.exists():
+        print(f"[!] Skipping existing file: {path}")
+        return path
+    
+    # Ensure directory exists
+    path.parent.mkdir(parents=True, exist_ok=True)
+    
+    try:
+        with open(path, "w") as f:
+            json.dump(content, f, indent=indent)
+        print(f"[✓] JSON saved: {path}")
+    except Exception as e:
+        print(f"[!] Error writing JSON to {path}: {e}")
+        raise
+    
+    return path
+
+
+def find_next_index(directory, pattern="metrics_*.json"):
+    """Find the next available index for numbered files in a directory
+    
+    Args:
+        directory (str or Path): Directory to search in
+        pattern (str): Glob pattern for files with index in the second part of stem
+                       (e.g., "metrics_0001.json" where "0001" is the index)
+    
+    Returns:
+        int: Next available index (0 if no existing files found)
+    """
+    directory = Path(directory)
+    existing_files = list(directory.glob(pattern))
+    
+    if not existing_files:
+        return 0
+    
+    # Extract indices from filenames and find max
+    indices = [
+        int(f.stem.split('_')[1]) 
+        for f in existing_files 
+        if len(f.stem.split('_')) > 1 and f.stem.split('_')[1].isdigit()
+    ]
+    
+    return max(indices) + 1 if indices else 0 
