@@ -2,8 +2,8 @@ import time
 import statistics
 from pathlib import Path
 from metadrive.envs.metadrive_env import MetaDriveEnv
-from meta.utils import make_env_config, save_map, save_json, save_metrics_to_csv, create_iso_timestamp
-from collections import Counter
+from meta.utils import make_env_config, save_map, save_json, save_metrics_to_csv, create_iso_timestamp, ensure_dir_exists
+from collections import Counter 
 
 def generate_single_map(
     args,
@@ -25,17 +25,25 @@ def generate_single_map(
     config = make_env_config(args)
     env = MetaDriveEnv(config)
     
+    # Create directories for images and data
+    images_dir = output_dir / "images"
+    data_dir = output_dir / "data"
+    ensure_dir_exists(images_dir)
+    ensure_dir_exists(data_dir)
+    
     metrics = generate_random_map(
         env=env,
         seed=args.seed,
         map_blocks=args.map,
         output_dir=output_dir,
+        images_dir=images_dir,
+        data_dir=data_dir,
         output_type=output_type
     )
     
     # Clean up environment
     env.close()
-    save_json(output_dir / f"metrics_{create_iso_timestamp(False)}", metrics)
+    save_json(data_dir / f"metrics_{create_iso_timestamp(False)}", metrics)
 
     return metrics
 
@@ -67,6 +75,12 @@ def generate_maps_benchmark(
     print(f"Running benchmark with {iterations} iterations...")
     print(f"Map blocks: {args.map}, Base seed: {base_seed}")
     
+    # Create directories for images and data
+    images_dir = output_dir / "images"
+    data_dir = output_dir / "data"
+    ensure_dir_exists(images_dir)
+    ensure_dir_exists(data_dir)
+    
     for i in range(iterations):
         # Calculate seed for this iteration
         current_seed = base_seed + i
@@ -80,6 +94,8 @@ def generate_maps_benchmark(
             seed=current_seed,
             map_blocks=args.map,
             output_dir=output_dir,
+            images_dir=images_dir,
+            data_dir=data_dir,
             output_type=output_type
         )
             
@@ -114,7 +130,7 @@ def generate_maps_benchmark(
     
     # Save summary using the utility function with a timestamp for uniqueness
     timestamp = create_iso_timestamp(False)
-    save_json(output_dir / f"benchmark_{timestamp}", summary)
+    save_json(data_dir / f"benchmark_{timestamp}", summary)
     
     print(f"\nBenchmark complete. Results saved to {output_dir}")
     print(f"Average generation time: {avg_time:.3f}s")
@@ -128,10 +144,21 @@ def generate_random_map(
         seed,
         map_blocks,
         output_dir="outputs",
+        images_dir=None,
+        data_dir=None,
         output_type="png"
     ):
 
     output_dir = Path(output_dir)
+    
+    # Use provided directories or create defaults
+    if images_dir is None:
+        images_dir = output_dir / "images"
+        ensure_dir_exists(images_dir)
+    
+    if data_dir is None:
+        data_dir = output_dir / "data"
+        ensure_dir_exists(data_dir)
     
     t0 = time.time()
     env.reset(seed=seed)
@@ -143,7 +170,7 @@ def generate_random_map(
     # Save the map and get the timestamp information
     idx, ts = save_map(
         env=env,
-        output_dir=output_dir,
+        output_dir=images_dir,  # Use images directory for map images
         output_type=output_type
     )
     
@@ -158,8 +185,8 @@ def generate_random_map(
         "timestamp": ts
     }
     
-    # Save metrics to CSV
-    save_metrics_to_csv(output_dir, metrics)
+    # Save metrics to CSV in data directory
+    save_metrics_to_csv(data_dir, metrics)
     
     print(f"[✓] Generated map: seed={seed}, blocks={map_blocks}, time={metrics['time_elapsed']}s")
     
