@@ -3,11 +3,36 @@ from metadrive.utils.draw_top_down_map import draw_top_down_map
 import matplotlib.pyplot as plt
 import json
 import datetime
+import csv
 
 
-def create_timestamp():
-    """Create a timestamp string in format YYYYMMDD_HHMMSS for unique folder names"""
-    return datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+def create_iso_timestamp(with_ms=True):
+    """Create an ISO-like timestamp string with millisecond precision
+    
+    Args:
+        with_ms: Whether to include milliseconds in the timestamp
+        
+    Returns:
+        str: Timestamp in format YYYYMMDDTHHMMSSmmm (if with_ms=True) or YYYYMMDDTHHMMSS
+    """
+    if with_ms:
+        return datetime.datetime.now().strftime("%Y%m%dT%H%M%S%f")[:18]  # Truncate to milliseconds
+    else:
+        return datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
+
+
+def generate_file_stem(prefix):
+    """Generate a file stem based on timestamp
+    
+    Args:
+        prefix: Prefix for the file stem
+        
+    Returns:
+        tuple: (idx, timestamp) where idx is last 6 digits of timestamp
+    """
+    ts = create_iso_timestamp()
+    idx = ts[-6:]
+    return idx, ts
 
 
 def ensure_dir_exists(directory):
@@ -50,23 +75,60 @@ def make_env_config(args, seed=None):
 def save_map(
     env,
     output_dir,
-    file_idx,
     output_type="png"
 ):
-    """Save map visualization to the specified output format"""
+    """Save map visualization to the specified output format using timestamp-based filenames
+    
+    Returns:
+        tuple: (idx, timestamp) for the generated file
+    """
     output_dir = Path(output_dir)
     
+    idx, ts = generate_file_stem("map")
+    
     if output_type.lower() == "png":
-        map_path = output_dir / f"map_{file_idx:04d}.png"
+        map_path = output_dir / f"map_{idx}_{ts}.png"
         img = draw_top_down_map(env.current_map)
         plt.imsave(str(map_path), img)
         plt.close()
     elif output_type.lower() == "gif":
         # Create GIF of the simulated episode
-        gif_path = output_dir / f"map_{file_idx:04d}.gif"
+        gif_path = output_dir / f"map_{idx}_{ts}.gif"
         env.render_to_gif(str(gif_path), audio=False, fps=10)
     
-    return True
+    return idx, ts
+
+
+def save_metrics_to_csv(output_dir, metrics):
+    """Save metrics to a CSV file, always appending to existing file
+    
+    Args:
+        output_dir: Directory to save CSV in
+        metrics: Dictionary of metrics to save
+        
+    Returns:
+        Path: Path to the CSV file
+    """
+    output_dir = Path(output_dir)
+    csv_path = output_dir / "benchmark.csv"
+    
+    # Check if file exists to determine if header is needed
+    file_exists = csv_path.exists()
+    
+    # Ensure all metrics are present
+    fieldnames = ["filename", "seed", "map_blocks", "block_sequence", "block_type_counts", "time_elapsed", "idx", "timestamp"]
+    
+    with open(csv_path, mode='a', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        
+        # Write header only if file is new
+        if not file_exists:
+            writer.writeheader()
+        
+        # Write row
+        writer.writerow(metrics)
+    
+    return csv_path
 
 
 def save_json(filepath, content, indent=2, overwrite=True):

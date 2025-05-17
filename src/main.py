@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 import subprocess
 from meta import generate_single_map, generate_maps_benchmark
-from meta.utils import create_timestamp, ensure_dir_exists
+from meta.utils import create_iso_timestamp, ensure_dir_exists
 
 def setup_metadrive():
     metadrive_path = Path("metadrive")
@@ -52,7 +52,7 @@ def main():
     args = parse_args()
     
     # Get project name or generate timestamp-based one if not provided
-    project_name = args.project_name if args.project_name else create_timestamp()
+    project_name = args.project_name if args.project_name else create_iso_timestamp(False).replace('T', '_')
     
     # Create project-based output directory structure
     base_output_dir = Path(args.output_dir)

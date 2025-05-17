@@ -2,7 +2,7 @@ import time
 import statistics
 from pathlib import Path
 from metadrive.envs.metadrive_env import MetaDriveEnv
-from meta.utils import make_env_config, save_map, save_json
+from meta.utils import make_env_config, save_map, save_json, save_metrics_to_csv, create_iso_timestamp
 from collections import Counter
 
 def generate_single_map(
@@ -35,7 +35,7 @@ def generate_single_map(
     
     # Clean up environment
     env.close()
-    save_json(output_dir / "metrics", metrics)
+    save_json(output_dir / f"metrics_{create_iso_timestamp(False)}", metrics)
 
     return metrics
 
@@ -112,8 +112,9 @@ def generate_maps_benchmark(
         "individual_metrics": all_metrics
     }
     
-    # Save summary using the utility function
-    save_json(output_dir / "benchmark", summary)
+    # Save summary using the utility function with a timestamp for uniqueness
+    timestamp = create_iso_timestamp(False)
+    save_json(output_dir / f"benchmark_{timestamp}", summary)
     
     print(f"\nBenchmark complete. Results saved to {output_dir}")
     print(f"Average generation time: {avg_time:.3f}s")
@@ -139,21 +140,26 @@ def generate_random_map(
     block_sequence = [block.ID for block in env.current_map.blocks]
     block_type_counts = dict(Counter(block_sequence))
     
+    # Save the map and get the timestamp information
+    idx, ts = save_map(
+        env=env,
+        output_dir=output_dir,
+        output_type=output_type
+    )
+    
     metrics = {
+        "filename": f"map_{idx}_{ts}.png",
         "seed": seed,
         "map_blocks": map_blocks,
         "block_sequence": block_sequence,
         "block_type_counts": block_type_counts,
-        "time_elapsed": round(t1 - t0, 3)
+        "time_elapsed": round(t1 - t0, 3),
+        "idx": idx,
+        "timestamp": ts
     }
     
-
-    save_map(
-        env=env,
-        output_dir=output_dir,
-        file_idx=seed,
-        output_type=output_type
-    )
+    # Save metrics to CSV
+    save_metrics_to_csv(output_dir, metrics)
     
     print(f"[✓] Generated map: seed={seed}, blocks={map_blocks}, time={metrics['time_elapsed']}s")
     
