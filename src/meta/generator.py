@@ -144,6 +144,29 @@ def generate_maps_benchmark(
     return summary
 
 
+def safe_reset(env, seed, timeout=120):
+    """Reset environment with timeout protection
+    
+    Retry added because BIG discards invalid blocks up to T times, then backtracks if all fail.
+    This may cause performance issues, appearing as if the process is stuck or stopped (Li et al., 2021, p. 7).
+    Li, Q., et al. (2021). MetaDrive: Composing diverse driving scenarios for generalizable reinforcement learning. *arXiv:2109.12674*
+
+    Args:
+        env: The MetaDrive environment
+        seed: Random seed for reproducibility
+        timeout: Maximum time in seconds to wait for reset
+        
+    Raises:
+        TimeoutError: If the reset operation times out or fails
+    """
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(env.reset, seed=seed)
+            future.result(timeout=timeout)
+    except Exception as e:
+        raise TimeoutError(f"[✗] env.reset(seed={seed}) failed: {type(e).__name__}") from e
+
+
 def generate_random_map(
         env,
         seed,
@@ -163,28 +186,16 @@ def generate_random_map(
     ensure_dir_exists(data_dir)
     
     t0 = time.time()
-    error_msg = None
     
-    for attempt in range(3):
-        try:
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(env.reset, seed=seed)
-                future.result(timeout=120)  # 2 minute timeout
-            t1 = time.time()
-            break
-        except Exception as e:
-            error_type = type(e).__name__
-            print(f"[!] Attempt {attempt+1}/3 failed: {error_type}")
-            error_msg = f"{error_type} after 3 attempts"
-    else:
-        # This executes if no 'break' occurred (all attempts failed)
-        print(f"[✗] Failed: seed={seed}, Timeout after 3 attempts")
-        
+    try:
+        safe_reset(env, seed)
+        t1 = time.time()
+    except TimeoutError as e:
         # Return metrics with error information
         return {
             "seed": seed,
             "map_blocks": map_blocks,
-            "error": error_msg,
+            "error": str(e),
             "time_elapsed": None,
             "idx": None,
             "timestamp": create_iso_timestamp(False)
