@@ -115,8 +115,14 @@ def save_metrics_to_csv(output_dir, metrics):
     # Check if file exists to determine if header is needed
     file_exists = csv_path.exists()
     
-    # Ensure all metrics are present
-    fieldnames = ["filename", "seed", "map_blocks", "block_sequence", "block_type_counts", "time_elapsed", "idx", "timestamp"]
+    # Ensure all metrics are present - renamed filename to map_id
+    fieldnames = ["map_id", "seed", "map_blocks", "block_sequence", "block_type_counts", "time_elapsed", "idx", "timestamp"]
+    
+    # Copy metrics and rename filename key to map_id if present
+    row_data = metrics.copy()
+    if "filename" in row_data:
+        row_data["map_id"] = row_data["filename"]
+        del row_data["filename"]
     
     with open(csv_path, mode='a', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -126,7 +132,7 @@ def save_metrics_to_csv(output_dir, metrics):
             writer.writeheader()
         
         # Write row
-        writer.writerow(metrics)
+        writer.writerow(row_data)
     
     return csv_path
 

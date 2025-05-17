@@ -181,7 +181,7 @@ def generate_random_map(
     )
     
     metrics = {
-        "filename": f"map_{idx}_{ts}.png",
+        "filename": f"map_{idx}_{ts}",
         "seed": seed,
         "map_blocks": map_blocks,
         "block_sequence": block_sequence,
