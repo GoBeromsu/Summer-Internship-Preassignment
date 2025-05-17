@@ -1,9 +1,11 @@
 import time
 import statistics
 from pathlib import Path
+import concurrent.futures
 from metadrive.envs.metadrive_env import MetaDriveEnv
 from meta.utils import make_env_config, save_map, save_json, save_metrics_to_csv, create_iso_timestamp, ensure_dir_exists
-from collections import Counter 
+from collections import Counter
+ 
 
 def generate_single_map(
     args,
@@ -20,29 +22,23 @@ def generate_single_map(
     Returns:
         Generated map metrics
     """
-    # Use output directory directly without adding blocks subdirectory
     # Create environment with explicit seed
     config = make_env_config(args)
     env = MetaDriveEnv(config)
-    
-    # Create directories for images and data
-    images_dir = output_dir / "images"
-    data_dir = output_dir / "data"
-    ensure_dir_exists(images_dir)
-    ensure_dir_exists(data_dir)
     
     metrics = generate_random_map(
         env=env,
         seed=args.seed,
         map_blocks=args.map,
         output_dir=output_dir,
-        images_dir=images_dir,
-        data_dir=data_dir,
         output_type=output_type
     )
     
     # Clean up environment
     env.close()
+    
+    # Save full metrics data
+    data_dir = Path(output_dir) / "data"
     save_json(data_dir / f"metrics_{create_iso_timestamp(False)}", metrics)
 
     return metrics
@@ -71,47 +67,49 @@ def generate_maps_benchmark(
     # Track metrics across all iterations
     all_metrics = []
     generation_times = []
+    success_count = 0
+    failure_count = 0
     
     print(f"Running benchmark with {iterations} iterations...")
     print(f"Map blocks: {args.map}, Base seed: {base_seed}")
-    
-    # Create directories for images and data
-    images_dir = output_dir / "images"
-    data_dir = output_dir / "data"
-    ensure_dir_exists(images_dir)
-    ensure_dir_exists(data_dir)
     
     for i in range(iterations):
         # Calculate seed for this iteration
         current_seed = base_seed + i
         
-        # Create environment with specific seed (without modifying args)
+        # Create environment with specific seed
         config = make_env_config(args, seed=current_seed)
         env = MetaDriveEnv(config)
+        
+        # Print progress at the start of each iteration
+        print(f"[{i+1:3d}/{iterations}] Trying seed={current_seed}, blocks={args.map} ...")
         
         metrics = generate_random_map(
             env=env,
             seed=current_seed,
             map_blocks=args.map,
             output_dir=output_dir,
-            images_dir=images_dir,
-            data_dir=data_dir,
             output_type=output_type
         )
             
         all_metrics.append(metrics)
-        generation_times.append(metrics["time_elapsed"])
-            
-        # Print progress
-        if (i + 1) % 10 == 0:
-            print(f"Progress: {i + 1}/{iterations} iterations completed")
-
         
+        # Only include successful generations in time statistics
+        if "error" not in metrics:
+            generation_times.append(metrics["time_elapsed"])
+            success_count += 1
+        else:
+            failure_count += 1
+            
         env.close()
 
-    avg_time = statistics.mean(generation_times)
-    min_time = min(generation_times)
-    max_time = max(generation_times)
+    # Calculate statistics only if we have successful generations
+    if generation_times:
+        avg_time = statistics.mean(generation_times)
+        min_time = min(generation_times)
+        max_time = max(generation_times)
+    else:
+        avg_time = min_time = max_time = 0
 
     # Create summary data
     summary = {
@@ -124,17 +122,24 @@ def generate_maps_benchmark(
             "avg_generation_time": round(avg_time, 3),
             "min_generation_time": round(min_time, 3),
             "max_generation_time": round(max_time, 3),
+            "success_count": success_count,
+            "failure_count": failure_count
         },
         "individual_metrics": all_metrics
     }
     
     # Save summary using the utility function with a timestamp for uniqueness
+    data_dir = Path(output_dir) / "data"
+    ensure_dir_exists(data_dir)
     timestamp = create_iso_timestamp(False)
     save_json(data_dir / f"benchmark_{timestamp}", summary)
     
-    print(f"\nBenchmark complete. Results saved to {output_dir}")
-    print(f"Average generation time: {avg_time:.3f}s")
-    print(f"Min/Max times: {min_time:.3f}s / {max_time:.3f}s")
+    print(f"\nBenchmark complete.  ✔ {success_count}/{iterations} successful,  ❌ {failure_count} failed")
+    if generation_times:
+        print(f"Average generation time: {avg_time:.3f}s  (on {success_count} successful runs)")
+        print(f"Min/Max times: {min_time:.3f}s / {max_time:.3f}s")
+    else:
+        print("No successful maps generated.")
     
     return summary
 
@@ -151,26 +156,48 @@ def generate_random_map(
 
     output_dir = Path(output_dir)
     
-    # Use provided directories or create defaults
-    if images_dir is None:
-        images_dir = output_dir / "images"
-        ensure_dir_exists(images_dir)
-    
-    if data_dir is None:
-        data_dir = output_dir / "data"
-        ensure_dir_exists(data_dir)
+    # Set up directory structure consistently 
+    images_dir = output_dir / "images"
+    data_dir = output_dir / "data"
+    ensure_dir_exists(images_dir)
+    ensure_dir_exists(data_dir)
     
     t0 = time.time()
-    env.reset(seed=seed)
-    t1 = time.time()
+    error_msg = None
     
+    for attempt in range(3):
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(env.reset, seed=seed)
+                future.result(timeout=120)  # 2 minute timeout
+            t1 = time.time()
+            break
+        except Exception as e:
+            error_type = type(e).__name__
+            print(f"[!] Attempt {attempt+1}/3 failed: {error_type}")
+            error_msg = f"{error_type} after 3 attempts"
+    else:
+        # This executes if no 'break' occurred (all attempts failed)
+        print(f"[✗] Failed: seed={seed}, Timeout after 3 attempts")
+        
+        # Return metrics with error information
+        return {
+            "seed": seed,
+            "map_blocks": map_blocks,
+            "error": error_msg,
+            "time_elapsed": None,
+            "idx": None,
+            "timestamp": create_iso_timestamp(False)
+        }
+    
+    # Continue with successful map generation
     block_sequence = [block.ID for block in env.current_map.blocks]
     block_type_counts = dict(Counter(block_sequence))
     
     # Save the map and get the timestamp information
     idx, ts = save_map(
         env=env,
-        output_dir=images_dir,  # Use images directory for map images
+        output_dir=images_dir,
         output_type=output_type
     )
     
@@ -188,6 +215,6 @@ def generate_random_map(
     # Save metrics to CSV in data directory
     save_metrics_to_csv(data_dir, metrics)
     
-    print(f"[✓] Generated map: seed={seed}, blocks={map_blocks}, time={metrics['time_elapsed']}s")
+    print(f"[✓] Generated: seed={seed}, time={metrics['time_elapsed']}s")
     
     return metrics
