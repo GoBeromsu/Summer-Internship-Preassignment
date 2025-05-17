@@ -2,6 +2,26 @@ from pathlib import Path
 from metadrive.utils.draw_top_down_map import draw_top_down_map
 import matplotlib.pyplot as plt
 import json
+import datetime
+
+
+def create_timestamp():
+    """Create a timestamp string in format YYYYMMDD_HHMMSS for unique folder names"""
+    return datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+
+
+def ensure_dir_exists(directory):
+    """Ensure directory exists, create if not
+    
+    Args:
+        directory: Directory path to check/create
+        
+    Returns:
+        Path object of the directory
+    """
+    dir_path = Path(directory)
+    dir_path.mkdir(parents=True, exist_ok=True)
+    return dir_path
 
 
 def make_env_config(args, seed=None):

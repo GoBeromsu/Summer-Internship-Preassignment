@@ -2,7 +2,7 @@ import time
 import statistics
 from pathlib import Path
 from metadrive.envs.metadrive_env import MetaDriveEnv
-from src.meta.utils import make_env_config, save_map, save_json
+from meta.utils import make_env_config, save_map, save_json
 from collections import Counter
 
 def generate_single_map(
@@ -20,10 +20,7 @@ def generate_single_map(
     Returns:
         Generated map metrics
     """
-    # Create hierarchical directory structure
-    output_dir = Path(output_dir) / "single" / f"blocks{args.map}"
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
+    # Use output directory directly without adding blocks subdirectory
     # Create environment with explicit seed
     config = make_env_config(args)
     env = MetaDriveEnv(config)
@@ -38,7 +35,7 @@ def generate_single_map(
     
     # Clean up environment
     env.close()
-    save_json(output_dir / f"metrics_{file_idx:04d}", metrics)
+    save_json(output_dir / "metrics", metrics)
 
     return metrics
 
@@ -60,10 +57,6 @@ def generate_maps_benchmark(
     Returns:
         Benchmark summary with statistics
     """
-    # Create hierarchical directory structure (without seed in path)
-    benchmark_dir = Path(output_dir) / "benchmark" / f"blocks{args.map}"
-    benchmark_dir.mkdir(parents=True, exist_ok=True)
-    
     # Store original seed value
     base_seed = args.seed
     
@@ -86,7 +79,7 @@ def generate_maps_benchmark(
             env=env,
             seed=current_seed,
             map_blocks=args.map,
-            output_dir=benchmark_dir,
+            output_dir=output_dir,
             output_type=output_type
         )
             
@@ -120,9 +113,9 @@ def generate_maps_benchmark(
     }
     
     # Save summary using the utility function
-    save_json(benchmark_dir / "benchmark", summary)
+    save_json(output_dir / "benchmark", summary)
     
-    print(f"\nBenchmark complete. Results saved to {benchmark_dir}")
+    print(f"\nBenchmark complete. Results saved to {output_dir}")
     print(f"Average generation time: {avg_time:.3f}s")
     print(f"Min/Max times: {min_time:.3f}s / {max_time:.3f}s")
     

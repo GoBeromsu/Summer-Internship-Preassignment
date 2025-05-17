@@ -1,8 +1,9 @@
 import argparse
 import sys
 from pathlib import Path
-from src.meta import generate_single_map, generate_maps_benchmark
 import subprocess
+from meta import generate_single_map, generate_maps_benchmark
+from meta.utils import create_timestamp, ensure_dir_exists
 
 def setup_metadrive():
     metadrive_path = Path("metadrive")
@@ -33,7 +34,9 @@ def parse_args():
     parser.add_argument("--output-type", type=str, default="png", choices=["png", "gif"], 
                         help="Visual output format (JSON metrics are always saved)")
     parser.add_argument("--output-dir", type=str, default="outputs", 
-                        help="Base directory for outputs (will create /single and /benchmark subdirectories)")
+                        help="Base directory for outputs")
+    parser.add_argument("--project-name", type=str, default=None,
+                        help="Project name for organizing outputs (uses timestamp if not provided)")
     parser.add_argument("--render-mode", action="store_true", 
                         help="Render on screen (not recommended in Docker)")
     parser.add_argument("--benchmark", type=int, default=100,
@@ -48,8 +51,16 @@ def main():
 
     args = parse_args()
     
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    # Get project name or generate timestamp-based one if not provided
+    project_name = args.project_name if args.project_name else create_timestamp()
+    
+    # Create project-based output directory structure
+    base_output_dir = Path(args.output_dir)
+    project_dir = base_output_dir / project_name
+    output_dir = project_dir / f"blocks{args.map}"  
+    
+    # Ensure directory exists
+    ensure_dir_exists(output_dir)
     
     if args.benchmark:
         print(f"Running benchmark with {args.benchmark} iterations...")
@@ -59,7 +70,7 @@ def main():
         summary = generate_maps_benchmark(
             args=args,
             iterations=args.benchmark,
-            output_dir=args.output_dir,
+            output_dir=output_dir,
             output_type=args.output_type,
         )
         
@@ -72,7 +83,7 @@ def main():
         
         generate_single_map(
             args=args,
-            output_dir=args.output_dir,
+            output_dir=output_dir,
             output_type=args.output_type,
         )
         
