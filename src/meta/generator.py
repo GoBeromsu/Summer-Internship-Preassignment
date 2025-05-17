@@ -1,11 +1,12 @@
-import time
 import statistics
-from pathlib import Path
-import concurrent.futures
-from metadrive.envs.metadrive_env import MetaDriveEnv
-from meta.utils import make_env_config, save_map, save_json, save_metrics_to_csv, create_iso_timestamp, ensure_dir_exists
+import time
 from collections import Counter
- 
+from pathlib import Path
+
+from meta.utils import make_env_config, save_map, save_json, save_metrics_to_csv, create_iso_timestamp, \
+    ensure_dir_exists
+from metadrive.envs.metadrive_env import MetaDriveEnv
+
 
 def generate_single_map(
     args,
@@ -144,28 +145,6 @@ def generate_maps_benchmark(
     return summary
 
 
-def safe_reset(env, seed, timeout=120):
-    """Reset environment with timeout protection
-    
-    Retry added because BIG discards invalid blocks up to T times, then backtracks if all fail.
-    This may cause performance issues, appearing as if the process is stuck or stopped (Li et al., 2021, p. 7).
-    Li, Q., et al. (2021). MetaDrive: Composing diverse driving scenarios for generalizable reinforcement learning. *arXiv:2109.12674*
-
-    Args:
-        env: The MetaDrive environment
-        seed: Random seed for reproducibility
-        timeout: Maximum time in seconds to wait for reset
-        
-    Raises:
-        TimeoutError: If the reset operation times out or fails
-    """
-    try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(env.reset, seed=seed)
-            future.result(timeout=timeout)
-    except Exception as e:
-        raise TimeoutError(f"[✗] env.reset(seed={seed}) failed: {type(e).__name__}") from e
-
 
 def generate_random_map(
         env,
@@ -185,21 +164,10 @@ def generate_random_map(
     ensure_dir_exists(images_dir)
     ensure_dir_exists(data_dir)
     
-    t0 = time.time()
-    
-    try:
-        safe_reset(env, seed)
-        t1 = time.time()
-    except TimeoutError as e:
-        # Return metrics with error information
-        return {
-            "seed": seed,
-            "map_blocks": map_blocks,
-            "error": str(e),
-            "time_elapsed": None,
-            "idx": None,
-            "timestamp": create_iso_timestamp(False)
-        }
+    t0 = time.time()    
+    env.reset(seed=seed)
+    t1 = time.time()
+
     
     # Continue with successful map generation
     block_sequence = [block.ID for block in env.current_map.blocks]
