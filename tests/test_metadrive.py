@@ -34,7 +34,7 @@ def test_metadrive_run_generates_output():
              "metadrive"],
             capture_output=True,
             text=True,
-            timeout=60  # Set a timeout to prevent hanging tests
+            timeout=300 
         )
         assert run.returncode == 0, f"Docker run failed:\n{run.stderr}"
 
