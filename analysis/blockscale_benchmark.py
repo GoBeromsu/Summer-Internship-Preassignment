@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 # Constants
-PROJECT_NAME = "blockscale-benchmark"
+PROJECT_NAME = "blockscale_benchmark"
 DOCKER_IMAGE = "metadrive"
 NUM_ITERATIONS = 3
 BLOCK_RANGE = range(5, 70, 5)  # 5, 10, 15, ..., 100
