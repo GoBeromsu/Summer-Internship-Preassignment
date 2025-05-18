@@ -193,7 +193,7 @@ To compute block heaviness:
 - The resulting regression coefficients (β) were interpreted as **heaviness scores**.
   - A larger coefficient implies that the block contributes more significantly to increased generation time.
 
-#### Results
+#### Result
 
 Certain block types (e.g., X, C, O) showed **high heaviness scores**, suggesting that their presence tends to **increase generation time**:
 
