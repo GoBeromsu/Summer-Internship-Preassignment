@@ -17,11 +17,11 @@ I interpreted this assignment not merely as a map-generation task, but as a test
 
 Given that MetaDrive was explicitly specified in the assignment, I examined a recent study co-authored by Donghwan Shin, the professor of this internship (Osikowicz et al., 2025), to understand the rationale behind this choice.
 
-#### Identifying the Role of MetaDrive
+### Identifying the Role of MetaDrive
 - The study found that 31.3% of benchmark scenarios in CARLA were flaky due to simulation nondeterminism, whereas MetaDrive yielded **no flaky tests under the same evaluation protocol** (Osikowicz et al., 2025, p. 1).
 - This finding indicates that MetaDrive supports deterministic simulation and ensures reproducibility, an essential requirement in system-level ADS testing.
 - Given this, I interpreted the use of MetaDrive in the assignment as a deliberate decision to avoid flaky behaviours and to align with the research direction suggested by the previous study.
-#### Clarifying My Framing
+### Clarifying My Framing
 
 - Initially, based on the prompt (“If you want, consider the task from an autonomous vehicle testing perspective”), I viewed each **map** as a **test scenario**. To validate this framing, I referred to _Zhong et al. (2021)_, which defines **scenario-based testing** as a layered abstraction (L1–L5).
 - This led me to reinterpret my task more precisely: I am performing **vehicle testing** within the context of **L1 scenario variation**, treating MetaDrive as a tool to generate road topology diversity for evaluating ADS behaviour in downstream studies.
@@ -110,6 +110,10 @@ To understand both overall scaling trends and bottleneck behaviour, two parallel
     - These files were later imported by the analysis script, normalised based on the mean, and visualised accordingly
 
 #### Result
+<div style="display: flex; justify-content: space-between;">
+  <img src="outputs/blockscale_benchmark/plots/linear_scale/benchmark_linear_scale_2025-05-18_20-01-42.png" width="50%">
+  <img src="outputs/blockscale_benchmark/plots/log_scale/benchmark_log_scale_2025-05-18_20-01-42.png" width="50%">
+</div>
 
 - Overall, average generation time increased with block_num
 - Growth was gradual in early phases but showed a **sharp non-linear increase beyond a threshold**
@@ -146,8 +150,11 @@ To compute block heaviness:
 - The resulting regression coefficients (β) were interpreted as **heaviness scores**.
     - A larger coefficient implies that the block contributes more significantly to increased generation time.
 #### Results
-
 Certain block types (e.g., X, C, O) showed **high heaviness scores**, suggesting that their presence tends to **increase generation time**:
+
+<div style="text-align: center;">
+  <img src="outputs/block_heaviness/plots/block_heaviness_2025-05-18_19-20-04.png" width="80%">
+</div>
 
 - Intersection-related blocks (X, T, O) had the highest coefficients, implying that **structurally complex junctions** are more computationally expensive to generate.
 - The curve block (C) also scored significantly higher than the straight block (S), indicating that **curvature layout and connectivity** affect generation logic.
@@ -173,7 +180,19 @@ In all maps, the "I"` block (initial block) is always present, so we exclude it 
 	- Visualize **scatter plot + trend line** using matplotlib
 	- Derive the correlation coefficient (`r`) and significance (`p-value`) for each block
 	- If the absolute value of the correlation coefficient is large and p < 0.05 → I conclude that the proportion of the block has a statistically significant effect on time
+
 #### Result
+
+<div style="display: flex; justify-content: space-between;">
+  <img src="outputs/block_ratio/plots/block_X_2025-05-18_19-20-09.png" width="50%">
+  <img src="outputs/block_ratio/plots/block_O_2025-05-18_19-20-09.png" width="50%">
+</div>
+
+<div style="display: flex; justify-content: space-between;">
+  <img src="outputs/block_ratio/plots/block_S_2025-05-18_19-20-09.png" width="50%">
+  <img src="outputs/block_ratio/plots/block_R_2025-05-18_19-20-09.png" width="50%">
+</div>
+
 - Relationship between proportion of block type and time that is significant based on p-value:
 	- `S`: r = -0.105 , ***larger block ratio takes relatively less time***
 	- `X`: r = +0.099 , ***larger block ratio take more time***
@@ -181,6 +200,7 @@ In all maps, the "I"` block (initial block) is always present, so we exclude it 
 	- `R`: r = -0.085 , ***larger block ratio takes relatively less time***
 	- `r`: r = -0.045 , ***larger block ratio takes relatively less time***
 	- `C, T`: not significant (p > 0.05)
+
 - Implications:
 	- Higher **X, O** ratio increases generation time → Intersection-centered structure may be a factor in increasing complexity.
 	- For **S, R, r**, they are relatively simple or straightforward shapes, so they are likely to form efficient combinations within the same number of blocks.
