@@ -110,10 +110,12 @@ To understand both overall scaling trends and bottleneck behaviour, two parallel
     - These files were later imported by the analysis script, normalised based on the mean, and visualised accordingly
 
 #### Result
-<div style="display: flex; justify-content: space-between;">
-  <img src="outputs/blockscale_benchmark/plots/linear_scale/benchmark_linear_scale_2025-05-18_20-01-42.png" width="50%">
-  <img src="outputs/blockscale_benchmark/plots/log_scale/benchmark_log_scale_2025-05-18_20-01-42.png" width="50%">
-</div>
+<table>
+  <tr>
+    <td><img src="outputs/blockscale_benchmark/plots/linear_scale/benchmark_linear_scale_2025-05-18_20-01-42.png"/></td>
+    <td><img src="outputs/blockscale_benchmark/plots/log_scale/benchmark_log_scale_2025-05-18_20-01-42.png"/></td>
+  </tr>
+</table>
 
 - Overall, average generation time increased with block_num
 - Growth was gradual in early phases but showed a **sharp non-linear increase beyond a threshold**
@@ -152,9 +154,9 @@ To compute block heaviness:
 #### Results
 Certain block types (e.g., X, C, O) showed **high heaviness scores**, suggesting that their presence tends to **increase generation time**:
 
-<div style="text-align: center;">
-  <img src="outputs/block_heaviness/plots/block_heaviness_2025-05-18_19-20-04.png" width="80%">
-</div>
+<p align="center">
+	<img src="outputs/block_heaviness/plots/block_heaviness_2025-05-18_19-20-04.png" width="80%" a>
+</p>
 
 - Intersection-related blocks (X, T, O) had the highest coefficients, implying that **structurally complex junctions** are more computationally expensive to generate.
 - The curve block (C) also scored significantly higher than the straight block (S), indicating that **curvature layout and connectivity** affect generation logic.
@@ -183,15 +185,16 @@ In all maps, the "I"` block (initial block) is always present, so we exclude it 
 
 #### Result
 
-<div style="display: flex; justify-content: space-between;">
-  <img src="outputs/block_ratio/plots/block_X_2025-05-18_19-20-09.png" width="50%">
-  <img src="outputs/block_ratio/plots/block_O_2025-05-18_19-20-09.png" width="50%">
-</div>
-
-<div style="display: flex; justify-content: space-between;">
-  <img src="outputs/block_ratio/plots/block_S_2025-05-18_19-20-09.png" width="50%">
-  <img src="outputs/block_ratio/plots/block_R_2025-05-18_19-20-09.png" width="50%">
-</div>
+<table>
+  <tr>
+    <td><img src="outputs/block_ratio/plots/block_X_2025-05-18_19-20-09.png" width="100%"/></td>
+    <td><img src="outputs/block_ratio/plots/block_O_2025-05-18_19-20-09.png" width="100%"/></td>
+  </tr>
+  <tr>
+    <td><img src="outputs/block_ratio/plots/block_S_2025-05-18_19-20-09.png" width="100%"/></td>
+    <td><img src="outputs/block_ratio/plots/block_R_2025-05-18_19-20-09.png" width="100%"/></td>
+  </tr>
+</table>
 
 - Relationship between proportion of block type and time that is significant based on p-value:
 	- `S`: r = -0.105 , ***larger block ratio takes relatively less time***
@@ -229,7 +232,7 @@ In our current experiments, timeout handling is not explicitly implemented in th
 - I tried multithreading-based exception handling to handle timeouts, but it failed due to Python GIL and thread internal exception propagation issues. In the future, handling using native interrupts
 - As the number of blocks increases, the probability of connection failures in the backtracking algorithm spikes, causing extreme delays above 65 → This is interpreted as an effect of topological constraints other than simple combinations.
 - Both heaviness and ratio analyses used the same seed increment method (linear) and the same dataset. → While they lack complete independence due to overlapping analytical targets, they are designed with separate folders for each experiment to allow for future experiment branching and reuse.
-- We linearly increase the seed value when performing benchmarks, but for long-term reproducibility or collision avoidance, a hash-based unique ID design is desirable in the future
+- I linearly increase the seed value when performing benchmarks, but for long-term reproducibility or collision avoidance, a hash-based unique ID design is desirable in the future
 ## Future Work
 
 This experiment implicitly revealed that in addition to the number and type of blocks, external factors such as **MetaDrive internal algorithms (e.g., backtracking)** affect the generation time. Therefore, in the next step, we can extend the analysis to the **combination effect of structural factors such as block order, lane length, and intersection location**.
