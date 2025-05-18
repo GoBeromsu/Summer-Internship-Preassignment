@@ -1,0 +1,82 @@
+{
+  "benchmark_config": {
+    "map_blocks": 5,
+    "base_seed": 0,
+    "iterations": 3
+  },
+  "performance": {
+    "avg_generation_time": 0.244,
+    "min_generation_time": 0.182,
+    "max_generation_time": 0.338,
+    "success_count": 3,
+    "failure_count": 0
+  },
+  "individual_metrics": [
+    {
+      "filename": "map_314252_20250517T234314252",
+      "seed": 0,
+      "map_blocks": 5,
+      "block_sequence": [
+        "I",
+        "C",
+        "C",
+        "C",
+        "X",
+        "C"
+      ],
+      "block_type_counts": {
+        "I": 1,
+        "C": 4,
+        "X": 1
+      },
+      "time_elapsed": 0.338,
+      "idx": "314252",
+      "timestamp": "20250517T234314252"
+    },
+    {
+      "filename": "map_314539_20250517T234314539",
+      "seed": 1,
+      "map_blocks": 5,
+      "block_sequence": [
+        "I",
+        "T",
+        "X",
+        "X",
+        "T",
+        "S"
+      ],
+      "block_type_counts": {
+        "I": 1,
+        "T": 2,
+        "X": 2,
+        "S": 1
+      },
+      "time_elapsed": 0.182,
+      "idx": "314539",
+      "timestamp": "20250517T234314539"
+    },
+    {
+      "filename": "map_314842_20250517T234314842",
+      "seed": 2,
+      "map_blocks": 5,
+      "block_sequence": [
+        "I",
+        "T",
+        "C",
+        "X",
+        "C",
+        "r"
+      ],
+      "block_type_counts": {
+        "I": 1,
+        "T": 1,
+        "C": 2,
+        "X": 1,
+        "r": 1
+      },
+      "time_elapsed": 0.211,
+      "idx": "314842",
+      "timestamp": "20250517T234314842"
+    }
+  ]
+}
