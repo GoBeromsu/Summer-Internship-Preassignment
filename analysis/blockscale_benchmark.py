@@ -14,6 +14,11 @@ DOCKER_IMAGE = "metadrive"
 NUM_ITERATIONS = 3
 BLOCK_RANGE = range(5, 70, 5)  # 5, 10, 15, ..., 100
 OUTPUT_DIR = Path("outputs")
+PROJECT_DIR = OUTPUT_DIR / PROJECT_NAME
+PLOTS_DIR = PROJECT_DIR / "plots"
+RESULTS_DIR = PROJECT_DIR / "results"
+LINEAR_SCALE_DIR = PLOTS_DIR / "linear_scale"
+LOG_SCALE_DIR = PLOTS_DIR / "log_scale"
 
 
 def build_docker_image():
@@ -71,11 +76,8 @@ def read_csv_results():
         "std_dev_times": []
     }
     
-    # Project directory where all benchmark results are stored
-    project_dir = OUTPUT_DIR / PROJECT_NAME
-    
     for block_count in BLOCK_RANGE:
-        block_dir = project_dir / f"blocks{block_count}"
+        block_dir = PROJECT_DIR / f"blocks{block_count}"
         # CSV files are stored in the data directory
         csv_path = block_dir / "data" / "benchmark.csv"
         
@@ -166,56 +168,23 @@ def visualize_results_log_scale(results):
 
 def save_results(results):
     """Save benchmark results to files."""
-    # Create timestamp for unique filenames
+    # Extract timestamp for unique filenames
     timestamp = results["metadata"]["timestamp"]
     
-    # Ensure output directory exists
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    
-    # Create project directory for results
-    project_dir = OUTPUT_DIR / PROJECT_NAME
-    project_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Create separate directories for plots and results
-    plots_dir = project_dir / "plots"
-    results_dir = project_dir / "results"
-    plots_dir.mkdir(parents=True, exist_ok=True)
-    results_dir.mkdir(parents=True, exist_ok=True)
-    
     # Save raw data as JSON in results directory
-    json_path = results_dir / f"benchmark_data_{timestamp}.json"
+    json_path = RESULTS_DIR / f"benchmark_data_{timestamp}.json"
     with open(json_path, 'w') as f:
         json.dump(results, f, indent=2)
     
-    # Create subdirectories for different plot types
-    linear_scale_dir = plots_dir / "linear_scale"
-    log_scale_dir = plots_dir / "log_scale"
-    linear_scale_dir.mkdir(parents=True, exist_ok=True)
-    log_scale_dir.mkdir(parents=True, exist_ok=True)
-
     # Save linear scale plot
     plt_linear = visualize_results(results)
-    plt_path_linear = linear_scale_dir / f"benchmark_linear_scale_{timestamp}.png"
+    plt_path_linear = LINEAR_SCALE_DIR / f"benchmark_linear_scale_{timestamp}.png"
     plt_linear.savefig(plt_path_linear, dpi=300, bbox_inches='tight')
     plt_linear.close()
     
     # Save log scale plot
     plt_log = visualize_results_log_scale(results)
-    plt_path_log = log_scale_dir / f"benchmark_log_scale_{timestamp}.png"
-    plt_log.savefig(plt_path_log, dpi=300, bbox_inches='tight')
-    plt_log.close()
-    
-    print(f"Linear plot saved to: {plt_path_linear}")
-    print(f"Log-scale plot saved to: {plt_path_log}")
-    print(f"JSON data saved to: {json_path}")
-    plt_linear = visualize_results(results)
-    plt_path_linear = linear_scale_dir / f"benchmark_linear_scale_{timestamp}.png"
-    plt_linear.savefig(plt_path_linear, dpi=300, bbox_inches='tight')
-    plt_linear.close()
-    
-    # Save log scale plot
-    plt_log = visualize_results_log_scale(results)
-    plt_path_log = log_scale_dir / f"benchmark_log_scale_{timestamp}.png"
+    plt_path_log = LOG_SCALE_DIR / f"benchmark_log_scale_{timestamp}.png"
     plt_log.savefig(plt_path_log, dpi=300, bbox_inches='tight')
     plt_log.close()
     
@@ -228,8 +197,13 @@ def main():
     """Main function to run the benchmark."""
     print(f"MetaDrive Block Scale Benchmark - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
-    # Ensure output directory exists
+    # Create all necessary directories
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    PROJECT_DIR.mkdir(parents=True, exist_ok=True)
+    PLOTS_DIR.mkdir(parents=True, exist_ok=True)
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    LINEAR_SCALE_DIR.mkdir(parents=True, exist_ok=True)
+    LOG_SCALE_DIR.mkdir(parents=True, exist_ok=True)
     
     # Ask if user wants to run benchmarks or just generate plots
     run_new_benchmarks = input("Run new benchmarks? (y/n, default: n): ").strip().lower() == 'y'
@@ -251,8 +225,7 @@ def main():
     # Save aggregated results
     save_results(results)
     
-    print(f"Process complete. Results saved to {OUTPUT_DIR / PROJECT_NAME}")
-
+    print(f"Process complete. Results saved to {PROJECT_DIR}")
 
 if __name__ == "__main__":
     main() 
