@@ -12,7 +12,7 @@ import pandas as pd
 PROJECT_NAME = "blockscale_benchmark"
 DOCKER_IMAGE = "metadrive"
 NUM_ITERATIONS = 3
-BLOCK_RANGE = range(5, 70, 5)  # 5, 10, 15, ..., 100
+BLOCK_RANGE = range(5, 65, 5)  # 5, 10, 15, ..., 60
 OUTPUT_DIR = Path("outputs")
 PROJECT_DIR = OUTPUT_DIR / PROJECT_NAME
 PLOTS_DIR = PROJECT_DIR / "plots"

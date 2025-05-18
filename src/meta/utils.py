@@ -1,9 +1,10 @@
-from pathlib import Path
-from metadrive.utils.draw_top_down_map import draw_top_down_map
-import matplotlib.pyplot as plt
-import json
-import datetime
 import csv
+import datetime
+import json
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+from metadrive.utils.draw_top_down_map import draw_top_down_map
 
 
 def create_iso_timestamp(with_ms=True):
