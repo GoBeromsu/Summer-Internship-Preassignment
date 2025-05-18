@@ -13,7 +13,7 @@
 ## How I Approach the Problem
 
 ### Framing the Assignment
-I interpreted this assignment not merely as a map-generation task, but as a test scenario generation task for Autonomous Driving Systems (ADS).Initially, based on the prompt (“If you want, consider the task from an autonomous vehicle testing perspective”), I started to view each **map** as a **test scenario**. To validate this framing, I referred to _Zhong et al. (2021)_, which defines **scenario-based testing** as a layered abstraction (L1–L5).
+I interpreted this assignment not merely as a map-generation task, but as a test scenario generation task for Autonomous Driving Systems (ADS). Initially, based on the prompt (“If you want, consider the task from an autonomous vehicle testing perspective”), I started to view each **map** as a **test scenario**. To validate this framing, I referred to _Zhong et al. (2021)_, which defines **scenario-based testing** as a layered abstraction (L1–L5).
 
 This led me to reinterpret my task more precisely: I am performing **vehicle testing** within the context of **L1 scenario variation**, treating MetaDrive as a tool to generate road topology diversity for testing ADS.
 
