@@ -138,6 +138,32 @@ def visualize_results(results):
     return plt
 
 
+def visualize_results_log_scale(results):
+    """Create logarithmic visualization of generation time vs. block count."""
+    block_counts = results["block_counts"]
+    avg_times = results["avg_times"]
+    min_times = results["min_times"]
+    max_times = results["max_times"]
+    
+    plt.figure(figsize=(10, 6))
+    
+    # Plot all three lines with distinct colors and markers
+    plt.plot(block_counts, min_times, 'o-', color='green', label='Min Generation Time')
+    plt.plot(block_counts, avg_times, 's-', color='blue', label='Avg Generation Time')
+    plt.plot(block_counts, max_times, '^-', color='red', label='Max Generation Time')
+    
+    plt.title('MetaDrive Map Generation Performance Benchmark (Log Scale)')
+    plt.xlabel('Number of Blocks')
+    plt.ylabel('Generation Time (seconds)')
+    plt.grid(True, linestyle='--', alpha=0.5)
+    plt.legend()
+    plt.yscale('log')  # Set y-axis to logarithmic scale
+    
+    plt.xticks(block_counts)
+    
+    return plt
+
+
 def save_results(results):
     """Save benchmark results to files."""
     # Create timestamp for unique filenames
@@ -161,13 +187,40 @@ def save_results(results):
     with open(json_path, 'w') as f:
         json.dump(results, f, indent=2)
     
-    # Create and save line plot visualization in plots directory
-    plt = visualize_results(results)
-    plt_path_png = plots_dir / f"benchmark_plot_{timestamp}.png"
-    plt.savefig(plt_path_png, dpi=300, bbox_inches='tight')
-    plt.close()
+    # Create subdirectories for different plot types
+    linear_scale_dir = plots_dir / "linear_scale"
+    log_scale_dir = plots_dir / "log_scale"
+    linear_scale_dir.mkdir(parents=True, exist_ok=True)
+    log_scale_dir.mkdir(parents=True, exist_ok=True)
+
+    # Save linear scale plot
+    plt_linear = visualize_results(results)
+    plt_path_linear = linear_scale_dir / f"benchmark_linear_scale_{timestamp}.png"
+    plt_linear.savefig(plt_path_linear, dpi=300, bbox_inches='tight')
+    plt_linear.close()
     
-    print(f"Plot saved to: {plt_path_png}")
+    # Save log scale plot
+    plt_log = visualize_results_log_scale(results)
+    plt_path_log = log_scale_dir / f"benchmark_log_scale_{timestamp}.png"
+    plt_log.savefig(plt_path_log, dpi=300, bbox_inches='tight')
+    plt_log.close()
+    
+    print(f"Linear plot saved to: {plt_path_linear}")
+    print(f"Log-scale plot saved to: {plt_path_log}")
+    print(f"JSON data saved to: {json_path}")
+    plt_linear = visualize_results(results)
+    plt_path_linear = linear_scale_dir / f"benchmark_linear_scale_{timestamp}.png"
+    plt_linear.savefig(plt_path_linear, dpi=300, bbox_inches='tight')
+    plt_linear.close()
+    
+    # Save log scale plot
+    plt_log = visualize_results_log_scale(results)
+    plt_path_log = log_scale_dir / f"benchmark_log_scale_{timestamp}.png"
+    plt_log.savefig(plt_path_log, dpi=300, bbox_inches='tight')
+    plt_log.close()
+    
+    print(f"Linear plot saved to: {plt_path_linear}")
+    print(f"Log-scale plot saved to: {plt_path_log}")
     print(f"JSON data saved to: {json_path}")
 
 
