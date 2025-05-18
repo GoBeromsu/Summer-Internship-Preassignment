@@ -19,6 +19,9 @@ DOCKER_IMAGE = "metadrive"
 NUM_ITERATIONS = 500
 TARGET_BLOCK_COUNT = 10
 OUTPUT_DIR = Path("outputs")
+PROJECT_DIR = OUTPUT_DIR / PROJECT_NAME
+PLOTS_DIR = PROJECT_DIR / "plots"
+RESULTS_DIR = PROJECT_DIR / "results"
 
 # ============= DOMAIN LOGIC =============
 
@@ -32,13 +35,13 @@ def build_docker_image():
     )
 
 
-def run_benchmark(block_count):
+def run_benchmark():
     """Run a benchmark with the specified block count."""
     cmd = [
         "docker", "run", "--rm",
         "-v", f"{OUTPUT_DIR.absolute()}:/app/outputs",
         DOCKER_IMAGE,
-        "--map", str(block_count),
+        "--map", str(TARGET_BLOCK_COUNT),
         "--num-scenarios", "1",
         "--benchmark", str(NUM_ITERATIONS),
         "--project-name", PROJECT_NAME
@@ -53,7 +56,7 @@ def run_benchmark(block_count):
     return True
 
 
-def parse_csv_line(line, block_dir):
+def parse_csv_line(line):
     """
     Parse a single line from the benchmark CSV file and remove the 'I' starter block.
     
@@ -63,14 +66,14 @@ def parse_csv_line(line, block_dir):
     reader = csv.reader([line])
     fields = next(reader)
     
-    if len(fields) < 6:
-        return None
-    
-    block_count = int(fields[2])
-    time_elapsed = float(fields[5])
-    
-    block_type_counts_str = fields[4]
-    block_counts = ast.literal_eval(block_type_counts_str)
+
+    try:
+        block_count = int(fields[2])
+        time_elapsed = float(fields[5])
+        block_type_counts_str = fields[4]   
+        block_counts = ast.literal_eval(block_type_counts_str)
+    except (ValueError, SyntaxError, IndexError) as e:
+        raise ValueError(f"Malformed data line: {line.strip()} → {e}")
     
     # Remove one "I" block (always present as starting block)
     if 'I' in block_counts and block_counts['I'] > 0:
@@ -89,14 +92,13 @@ def parse_csv_line(line, block_dir):
     return data_entry
 
 
-def collect_block_type_data():
+def collect_block_type_data(project_dir):
     """
     Collect block type counts and generation times from all benchmarks
     for linear regression analysis.
     """
     all_data = []
-    project_dir = OUTPUT_DIR / PROJECT_NAME
-    
+
     for block_dir in project_dir.glob("blocks*"):
         if not block_dir.is_dir():
             continue
@@ -111,12 +113,7 @@ def collect_block_type_data():
             file.readline()
             
             for line in file:
-                data_entry = parse_csv_line(line, block_dir)
-                if data_entry:
-                    all_data.append(data_entry)
-    
-    if not all_data:
-        return None
+                all_data.append(parse_csv_line(line))
     
     df = pd.DataFrame(all_data)
     
@@ -134,10 +131,9 @@ def analyze_block_heaviness(data_df):
     
     Uses linear regression to model: time ≈ a × count_A + b × count_B + ...
     where coefficients represent each block type's impact on generation time.
-    """
-    if data_df is None or len(data_df) < 10:
-        return None
     
+    Returns a results dictionary with analysis data and visualization.
+    """
     # Extract time data and block counts
     y = data_df['time_elapsed']
     block_type_columns = [col for col in data_df.columns if col.startswith('count_')]
@@ -145,15 +141,15 @@ def analyze_block_heaviness(data_df):
     if not block_type_columns:
         return None
     
-    X = data_df[block_type_columns]
+    x = data_df[block_type_columns]
     
     # Standardize features
     scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
+    x_scaled = scaler.fit_transform(x)
     
     # Fit the linear regression model
     model = LinearRegression()
-    model.fit(X_scaled, y)
+    model.fit(x_scaled, y)
     
     # Extract coefficients as heaviness scores
     coefficients = model.coef_
@@ -163,59 +159,30 @@ def analyze_block_heaviness(data_df):
         heaviness_scores[block_type] = coefficients[idx]
     
     # Calculate R-squared to evaluate the model
-    y_pred = model.predict(X_scaled)
+    y_pred = model.predict(x_scaled)
     r_squared = r2_score(y, y_pred)
     
     # Create results dictionary
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     results = {
         'metadata': {
-            'timestamp': datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
+            'timestamp': timestamp,
             'r_squared': r_squared,
             'sample_size': len(data_df)
         },
         'block_heaviness': heaviness_scores
     }
     
+    # Create visualization
+    plot = create_heaviness_visualization(results)
+    
+    # Add plot to results
+    results['plot'] = plot
+    
     return results
 
 
-def create_output_directories():
-    """Create necessary output directories."""
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    
-    project_dir = OUTPUT_DIR / PROJECT_NAME
-    project_dir.mkdir(parents=True, exist_ok=True)
-    
-    plots_dir = project_dir / "plots"
-    results_dir = project_dir / "results"
-    plots_dir.mkdir(parents=True, exist_ok=True)
-    results_dir.mkdir(parents=True, exist_ok=True)
-    
-    return project_dir, plots_dir, results_dir
-
-
-def save_results_to_files(results, plots_dir, results_dir):
-    """Save analysis results to JSON and CSV files."""
-    timestamp = results["metadata"]["timestamp"]
-    
-    # Save as JSON
-    json_path = results_dir / f"block_heaviness_{timestamp}.json"
-    with open(json_path, 'w') as f:
-        json.dump(results, f, indent=2)
-    
-    # Save as CSV
-    heaviness_df = pd.DataFrame({
-        'block_type': list(results['block_heaviness'].keys()),
-        'heaviness_score': list(results['block_heaviness'].values())
-    })
-    heaviness_df = heaviness_df.sort_values('heaviness_score', ascending=False)
-    csv_path = results_dir / f"block_heaviness_{timestamp}.csv"
-    heaviness_df.to_csv(csv_path, index=False)
-    
-    return json_path, csv_path
-
-
-def visualize_heaviness(results):
+def create_heaviness_visualization(results):
     """Create a bar chart visualization of block heaviness."""
     if not results or 'block_heaviness' not in results:
         return None
@@ -248,49 +215,58 @@ def visualize_heaviness(results):
     return plt
 
 
-def save_plot(plt, plots_dir, timestamp):
-    """Save the visualization plot to a file."""
-    plt_path_png = plots_dir / f"block_heaviness_{timestamp}.png"
-    plt.savefig(plt_path_png, dpi=300, bbox_inches='tight')
-    plt.close()
-    return plt_path_png
-
-
 def save_results(results):
-    """Save all results and visualizations."""
-    if not results:
-        return
+    """Save analysis results to JSON, CSV, and visualization files."""
+    timestamp = results['metadata']['timestamp']
     
-    timestamp = results["metadata"]["timestamp"]
-    project_dir, plots_dir, results_dir = create_output_directories()
-    save_results_to_files(results, plots_dir, results_dir)
+    # Save as JSON
+    json_path = RESULTS_DIR / f"block_heaviness_{timestamp}.json"
     
-    plt = visualize_heaviness(results)
-    if plt:
-        save_plot(plt, plots_dir, timestamp)
+    # Create a copy of results without the plot for JSON serialization
+    json_results = {k: v for k, v in results.items() if k != 'plot'}
+    
+    with open(json_path, 'w') as f:
+        json.dump(json_results, f, indent=2)
+    
+    # Save as CSV
+    heaviness_df = pd.DataFrame({
+        'block_type': list(results['block_heaviness'].keys()),
+        'heaviness_score': list(results['block_heaviness'].values())
+    })
+    heaviness_df = heaviness_df.sort_values('heaviness_score', ascending=False)
+    csv_path = RESULTS_DIR / f"block_heaviness_{timestamp}.csv"
+    heaviness_df.to_csv(csv_path, index=False)
+    
+    # Save plot
+    plt_path_png = PLOTS_DIR / f"block_heaviness_{timestamp}.png"
+    plot = results['plot']
+    plot.savefig(plt_path_png, dpi=300, bbox_inches='tight')
+    plot.close()
+    
+    return json_path, csv_path, plt_path_png
 
 
 def main():
     """
     Run the block heaviness analysis to identify which blocks take more time to generate.
     """
+    # Create necessary directories
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    PROJECT_DIR.mkdir(parents=True, exist_ok=True)
+    PLOTS_DIR.mkdir(parents=True, exist_ok=True)
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    
     run_new_benchmarks = input("Run new benchmarks? (y/n, default: n): ").strip().lower() == 'y'
     
     if run_new_benchmarks:
         build_docker_image()
-        run_benchmark(TARGET_BLOCK_COUNT)
-    
-    df = collect_block_type_data()
+        run_benchmark()
+    df = collect_block_type_data(PROJECT_DIR)
     
     if df is None or df.empty:
         return
     
     results = analyze_block_heaviness(df)
-    
-    if not results:
-        return
-    
     save_results(results)
 
 
