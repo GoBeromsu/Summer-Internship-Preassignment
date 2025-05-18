@@ -13,18 +13,17 @@
 ## How I Approach the Problem
 
 ### Framing the Assignment
-I interpreted this assignment not merely as a map-generation task, but as a test scenario generation task for Autonomous Driving Systems (ADS).
+I interpreted this assignment not merely as a map-generation task, but as a test scenario generation task for Autonomous Driving Systems (ADS).Initially, based on the prompt (“If you want, consider the task from an autonomous vehicle testing perspective”), I started to view each **map** as a **test scenario**. To validate this framing, I referred to _Zhong et al. (2021)_, which defines **scenario-based testing** as a layered abstraction (L1–L5).
 
-Given that MetaDrive was explicitly specified in the assignment, I examined a recent study co-authored by Donghwan Shin, the professor of this internship (Osikowicz et al., 2025), to understand the rationale behind this choice.
+This led me to reinterpret my task more precisely: I am performing **vehicle testing** within the context of **L1 scenario variation**, treating MetaDrive as a tool to generate road topology diversity for testing ADS.
+
+Furthurmore, Given that MetaDrive was explicitly specified in the assignment, I examined [a recent study co-authored by Donghwan Shin, the professor of this internship (Osikowicz et al., 2025)](https://philmcminn.com/publications/osikowicz2025.pdf), to understand the rationale behind this choice.
 
 ### Identifying the Role of MetaDrive
 - The study found that 31.3% of benchmark scenarios in CARLA were flaky due to simulation nondeterminism, whereas MetaDrive yielded **no flaky tests under the same evaluation protocol** (Osikowicz et al., 2025, p. 1).
 - This finding indicates that MetaDrive supports deterministic simulation and ensures reproducibility, an essential requirement in system-level ADS testing.
 - Given this, I interpreted the use of MetaDrive in the assignment as a deliberate decision to avoid flaky behaviours and to align with the research direction suggested by the previous study.
-### Clarifying My Framing
 
-- Initially, based on the prompt (“If you want, consider the task from an autonomous vehicle testing perspective”), I viewed each **map** as a **test scenario**. To validate this framing, I referred to _Zhong et al. (2021)_, which defines **scenario-based testing** as a layered abstraction (L1–L5).
-- This led me to reinterpret my task more precisely: I am performing **vehicle testing** within the context of **L1 scenario variation**, treating MetaDrive as a tool to generate road topology diversity for evaluating ADS behaviour in downstream studies.
 ## What is a Good Map
 
 To answer what makes a good test scenario for evaluating an ADS, I refer to the scenario abstraction model proposed by Zhong et al. (2021). They define a 5-layer structure for scenarios, which helps organise reasoning about scenario design:
