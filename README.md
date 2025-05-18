@@ -1,60 +1,84 @@
 # Summer Internship pre-assignment
-## Problem Framing
-- **Purpose**: _Test-scenario generator prototype_
-	- Prototype to generate scenario-based maps for ADS testing
-- **Scope**: Generating maps
-- **Perspective**: Framed as an autonomous vehicle testing task
-	- A map is treated as a test scenario
-	- Generating diverse maps helps evaluate system behaviour under varying driving conditions
-- **Why use MetaDrive?**
-	- MetaDrive is selected due to its stability and non-flaky nature, which aligns with both the pre-assignment and the anticipated internship tasks
-	- MetaDrive enables deterministic map generation using seed control
-	- “31.3% of benchmark test scenarios are potentially flaky due to nondeterministic simulations in CARLA, whereas MetaDrive does not yield any flaky tests” (Osikowicz et al., 2025)
 
-#### What Does 'Map' Mean in ADS?
-- According to Zhong et al. (2021), a map corresponds to the **L1 layer’s geometry**
-	- Road shape, topology, and surface conditions must be varied to evaluate ADS performance under diverse scenarios
+## How I Approach the Problem
 
-## About Map
-### What Makes a Good Map?
-- A well-designed map should generate **diverse, challenging, and reproducible** driving scenarios to **stress-test** the learning or control capacity of the ADS (Li et al., 2021)
-- **Structural Complexity**
-	- Measured through topological diversity and spatial challenge
+### Framing the Assignment
+- I interpreted this assignment not merely as a map-generation task, but as a test scenario generation task for Autonomous Driving Systems (ADS).
+- Given that MetaDrive was explicitly specified in the assignment, I examined a recent study co-authored by Donghwan Shin, the professor of this internship (Osikowicz et al., 2025) to understand the rationale behind this choice.
 
-### How Will the Map Be Generated?
-- Procedurally generate maps using MetaDrive same as Osikowicz et al. (2025)
-- Map MetaDrive configurations to L1 geometry metrics defined by Zhong et al. (2021)
+#### Identifying the Role of MetaDrive
+- The study found that 31.3% of benchmark scenarios in CARLA were flaky due to simulation nondeterminism, whereas MetaDrive yielded **no flaky tests under the same evaluation protocol** (Osikowicz et al., 2025, p. 1).
+- This finding indicates that MetaDrive supports deterministic simulation and ensures reproducibility—an essential requirement in system-level ADS testing.
+- Given this, I interpreted the use of MetaDrive in the assignment as a deliberate decision to avoid flaky behaviours and to align with the research direction suggested by the previous study.
 
-### Evaluation Criteria:
-- Generation time
-- Topology-based structural complexity
-  - Define a complexity metric
-  - Use this as the basis for benchmarking
-  - In block-based simulators like MetaDrive, **road connectivity** is the key factor affecting map complexity
-  - Formally define map complexity metrics and empirically investigate their correlation with **scenario diversity** and **ADS failure exposure**
+## What is Good Map
 
-## Criteria
-- MetaDrive metrics aligned with L1 geometry metrics defined by Zhong et al. (2021)
+To answer what makes a good test scenario for evaluating an ADS, I refer to the scenario abstraction model proposed by Zhong et al. (2021). They define a 5-layer structure for scenarios, which helps organise reasoning about scenario design:
+- **Layer 1** : road geometry and topology (e.g., curvature, number of lanes, surface)
+- **Layer 2–5** : concern infrastructure, manipulations, agent behaviour, and environment
 
-### Generation Runtime
-- `generation_time`: Time taken to generate a single map
-	- Measures the **scalability and stability** of the map generator
-	- Shorter generation times are helpful but do not necessarily indicate the quality of a test scenario
+In this framework, map generation takes place at Layer 1, which forms the static foundation of any scenario. However, L1-level variation alone does not constitute a complete test scenario(Zhong et al., 2021, p. 6). This indicates that **map information (L1)** is only part of a broader composition and must be combined with dynamic elements from higher layers to form a scenario that can actually be used for testing.
 
-### Metric-to-MetaDrive Mapping
+Although L1 diversity is not sufficient on its own, it provides the foundation for generating a variety of them. Thus, a good map is one that makes it possible to create diverse and meaningful scenarios
+### Mapping Layer 1 to MetaDrive's Map Generation
+To operationalise the L1 scenario layer defined by Zhong et al. (2021)—which includes features such as road curvature, ramps, network size, and junction types—I mapped a subset of L1 elements to MetaDrive’s configurable map generation components.
 
-| Metric                     | MetaDrive Extraction Method                                                               | Notes                                                                 |
-|----------------------------|--------------------------------------------------------------------------------------------|-----------------------------------------------------------------------|
-| `complexity_score`         | `env.engine.map.road_network.graph` → weighted by block count and type                    | Can parse `map_config["config"]` or iterate over `env.engine.block_sequence` |
-| `avg_num_spawn_points`     | `env.engine.spawn_manager.spawn_points` → `len()` and statistical aggregation             | `spawn_points` is a `List[SpawnPoint]`                               |
-| `min/max curvature`        | Extract `curvature` or `angle` from blocks of type `"r"` or `"Y"`                         | Requires custom loop over `env.engine.block_sequence` using `get_angle()` |
-| `graph_diameter`           | Convert `road_network.graph` to NetworkX and compute diameter                             | MetaDrive represents road networks as edge-based implicit graphs      |
-| `trigger object count`     | Filter `env.engine.object_manager.objects` for `TrafficCone`, `Barrier`, `CrashObject`    | Filter using `type(obj).__name__`                                    |
+In particular, I interpret **block_num** in MetaDrive as a proxy for **road network size**, one of the key attributes of Layer 1. A higher block count results in a larger, more complex road graph, potentially introducing more intersections, curves, and topological variability.
 
-- MetaDrive’s block-based architecture allows easy extraction of road-level metrics
-- Most metrics can be retrieved via `env.engine.block_sequence`, `spawn_manager`, `road_network.graph`, or `object_manager`
+By adjusting the number of blocks (`block_num`) in MetaDrive while keeping all other configurations fixed, I aim to incrementally increase map complexity and collect statistics on the **distribution of block types** generated per map.
+
+| MetaDrive Component      | Mapped L1 Feature                     | Description                                                |
+| ------------------------ | ------------------------------------- | ---------------------------------------------------------- |
+| `block_num`              | Road network size                     | Controls overall map size; proxy for network structure     |
+| `block_type`             | Road curvature, ramps, junction types | Encodes topological features like curves and intersections |
+| `lane_num`, `lane_width` | Number and geometry of lanes          | 
+
+Configures lane-level structure for each road segment      |
+This mapping serves as the basis for my experiment, where I use `block_num` to systematically induce variation in L1-level road structure
+## Planning
+The goal of this assignment is to collect and analyze metrics for maps generated by MetaDrive. In particular, it is important to analyze the correlation between generation time and map structure based on user input.
+
+But this raises the question: "**Why do we need to analyze the generation time**?" Is this just a technical issue or does it have research implications?
+
+#### Refine the Problem
+
+MetaDrive provides seed-based procedural map generation. This allows experimenters to experiment iteratively by automatically generating a variety of maps, making scenario-based testing flaky (Osikowicz et al., 2025).
+
+However, researcher need to create complex maps to achieve the desired scenario diversity. Example: Long paths, varying curvature, complex intersections, etc.
+
+The problem is, as the complexity increases, it is expected that the generation time is likely to increase as well. For example, generating a map with 20 or more different blocks will require more computation, which can be a bottleneck if we want to automatically generate thousands of maps.
+
+Therefore, the metric of generation time is considered to be a constraint on research (fidelity × throughput)
+
+### Research Objectives
+In this assignment, I aim to reveal the following trade-off structure
+
+  1. **Map diversity (coverage, structural complexity)** ↑ → **Generation time** ↑.
+	  1. generation time vs block count
+  2. the impact of specific block types (e.g., roundabout, ramp) on generation time
+  3. how different block combination can slow down the tiem
+
+I thinkk experiments can provide **guidelines for designing simulation experiments**. By allowing researchers to choose the right diversity within their desired time budget, they can optimize simulation efficiency × scenario coverage.
+## Experiments
+
+
+## Requirement
+
+- Create a Linux-based Docker image that run [MetaDrive](https://github.com/metadriverse/metadrive/)
+- Generate random maps based on a user-provided input
+  - i.e. road layouts composed of road blocks
+  - input
+    - e.g. the number of roads to generate
+    - the size of maps
+- scipt should save some output for each generated road
+  - e.g. images or gifs
+- collect and analyse basic runtime metrics
+  - For example,
+    - Measure the execution time for Dockerised MetaDrive
+    - Generate a plot showing the relationship between the number of roads and time to generate them
 
 ## References
+
 - Zhong, Z., Tang, Y., Zhou, Y., Neves, V. de O., Liu, Y., & Ray, B. (2021). _A Survey on Scenario-Based Testing for Automated Driving Systems in High-Fidelity Simulation_ (No. arXiv:2112.00964). arXiv. [https://doi.org/10.48550/arXiv.2112.00964](https://doi.org/10.48550/arXiv.2112.00964)
 
 - Osikowicz, O., McMinn, P., & Shin, D. (2025). _Empirically Evaluating Flaky Tests for Autonomous Driving Systems in Simulated Environments_.
