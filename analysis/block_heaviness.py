@@ -9,6 +9,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from scipy import stats
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
 from sklearn.preprocessing import StandardScaler
@@ -16,8 +17,8 @@ from sklearn.preprocessing import StandardScaler
 # Constants
 PROJECT_NAME = "block_heaviness"
 DOCKER_IMAGE = "metadrive"
-NUM_ITERATIONS = 500
-TARGET_BLOCK_COUNT = 10
+NUM_ITERATIONS = 1550
+TARGET_BLOCK_COUNT = 15
 OUTPUT_DIR = Path("outputs")
 PROJECT_DIR = OUTPUT_DIR / PROJECT_NAME
 PLOTS_DIR = PROJECT_DIR / "plots"
@@ -154,12 +155,31 @@ def analyze_block_heaviness(data_df):
     # Extract coefficients as heaviness scores
     coefficients = model.coef_
     heaviness_scores = {}
+    
+    # Calculate p-values for coefficients
+    n = len(data_df)
+    p = len(block_type_columns)
+    y_pred = model.predict(x_scaled)
+    residuals = y - y_pred
+    mse = np.sum(residuals**2) / (n - p - 1)
+    
+    # Calculate variance-covariance matrix
+    x_scaled_with_const = np.hstack((np.ones((n, 1)), x_scaled))
+    covariance = np.linalg.inv(np.dot(x_scaled_with_const.T, x_scaled_with_const))
+    
+    # Standard errors and t-statistics
+    se = np.sqrt(np.diag(covariance)[1:] * mse)  # Skip intercept
+    t_values = coefficients / se
+    p_values = [2 * (1 - stats.t.cdf(abs(t), n - p - 1)) for t in t_values]
+    
+    # Store coefficients and p-values
+    p_values_dict = {}
     for idx, block_type_col in enumerate(block_type_columns):
         block_type = block_type_col.replace('count_', '')
         heaviness_scores[block_type] = coefficients[idx]
+        p_values_dict[block_type] = p_values[idx]
     
     # Calculate R-squared to evaluate the model
-    y_pred = model.predict(x_scaled)
     r_squared = r2_score(y, y_pred)
     
     # Create results dictionary
@@ -170,7 +190,8 @@ def analyze_block_heaviness(data_df):
             'r_squared': r_squared,
             'sample_size': len(data_df)
         },
-        'block_heaviness': heaviness_scores
+        'block_heaviness': heaviness_scores,
+        'p_values': p_values_dict
     }
     
     # Create visualization
@@ -189,16 +210,29 @@ def create_heaviness_visualization(results):
     
     block_types = list(results['block_heaviness'].keys())
     heaviness_scores = list(results['block_heaviness'].values())
+    p_values = [results['p_values'].get(block_type, 1.0) for block_type in block_types]
     
     # Sort by heaviness score (descending)
     sorted_indices = np.argsort(heaviness_scores)[::-1]
     sorted_block_types = [block_types[i] for i in sorted_indices]
     sorted_scores = [heaviness_scores[i] for i in sorted_indices]
+    sorted_p_values = [p_values[i] for i in sorted_indices]
     
     # Create bar chart
     plt.figure(figsize=(12, 8))
-    colors = ['red' if score > 0 else 'green' for score in sorted_scores]
-    plt.bar(sorted_block_types, sorted_scores, color=colors)
+    
+    # Use colors to indicate significance
+    colors = []
+    for score, p_val in zip(sorted_scores, sorted_p_values):
+        if p_val < 0.01:
+            color = 'darkred' if score > 0 else 'darkgreen'  # Highly significant
+        elif p_val < 0.05:
+            color = 'red' if score > 0 else 'green'  # Significant
+        else:
+            color = 'lightcoral' if score > 0 else 'lightgreen'  # Not significant
+        colors.append(color)
+    
+    bars = plt.bar(sorted_block_types, sorted_scores, color=colors)
     
     plt.title('Block Type Heaviness Analysis (Standardized β-Coefficients)')
     plt.xlabel('Block Type')
@@ -206,11 +240,31 @@ def create_heaviness_visualization(results):
     plt.grid(True, linestyle='--', alpha=0.3, axis='y')
     plt.axhline(y=0, color='k', linestyle='-', alpha=0.5)
     
+    # Add significance indicators
+    for i, (p_val, bar) in enumerate(zip(sorted_p_values, bars)):
+        significance = ''
+        if p_val < 0.001:
+            significance = '***'
+        elif p_val < 0.01:
+            significance = '**'
+        elif p_val < 0.05:
+            significance = '*'
+        
+        if significance:
+            plt.text(bar.get_x() + bar.get_width()/2, 
+                     bar.get_height() + (0.05 * max(abs(max(sorted_scores)), abs(min(sorted_scores)))), 
+                     significance,
+                     ha='center', va='bottom')
+    
     # Add R-squared annotation
     r_squared = results['metadata']['r_squared']
     plt.annotate(f"R² = {r_squared:.3f}", xy=(0.95, 0.95), 
                  xycoords='axes fraction', ha='right', va='top',
                  bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.8))
+    
+    # Add legend for significance
+    plt.figtext(0.91, 0.05, "Significance:", ha="right")
+    plt.figtext(0.91, 0.03, "* p<0.05, ** p<0.01, *** p<0.001", ha="right")
     
     return plt
 
@@ -231,14 +285,15 @@ def save_results(results):
     # Save as CSV
     heaviness_df = pd.DataFrame({
         'block_type': list(results['block_heaviness'].keys()),
-        'heaviness_score': list(results['block_heaviness'].values())
+        'heaviness_score': list(results['block_heaviness'].values()),
+        'p_value': [results['p_values'].get(block_type, None) for block_type in results['block_heaviness'].keys()]
     })
     heaviness_df = heaviness_df.sort_values('heaviness_score', ascending=False)
     csv_path = RESULTS_DIR / f"block_heaviness_{timestamp}.csv"
     heaviness_df.to_csv(csv_path, index=False)
     
-    # Save plot
-    plt_path_png = PLOTS_DIR / f"block_heaviness_{timestamp}.png"
+    plot_filename = f"block_heaviness_{timestamp}.png"
+    plt_path_png = PLOTS_DIR / plot_filename
     plot = results['plot']
     plot.savefig(plt_path_png, dpi=300, bbox_inches='tight')
     plot.close()
