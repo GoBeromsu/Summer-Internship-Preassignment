@@ -17,6 +17,9 @@ DOCKER_IMAGE = "metadrive"
 NUM_ITERATIONS = 500
 TARGET_BLOCK_COUNT = 10
 OUTPUT_DIR = Path("outputs")
+PROJECT_DIR = OUTPUT_DIR / PROJECT_NAME
+PLOTS_DIR = PROJECT_DIR / "plots"
+RESULTS_DIR = PROJECT_DIR / "results"
 
 # ============= DOMAIN LOGIC =============
 
@@ -51,21 +54,20 @@ def run_benchmark(block_count):
     return True
 
 
-def parse_csv_line(line, block_dir):
+def parse_csv_line(line):
     """
     Parse a single line from the benchmark CSV file and remove the 'I' starter block.
     """
     reader = csv.reader([line])
     fields = next(reader)
     
-    if len(fields) < 6:
+    try:
+        block_count = int(fields[2])
+        time_elapsed = float(fields[5])
+        block_type_counts_str = fields[4]
+        block_counts = ast.literal_eval(block_type_counts_str)
+    except (ValueError, SyntaxError, IndexError) as e:
         return None
-    
-    block_count = int(fields[2])
-    time_elapsed = float(fields[5])
-    
-    block_type_counts_str = fields[4]
-    block_counts = ast.literal_eval(block_type_counts_str)
     
     # Remove 'I' block and count how many were removed
     i_count = 0
@@ -90,9 +92,8 @@ def collect_block_type_data():
     Collect block type counts and generation times from all benchmarks.
     """
     all_data = []
-    project_dir = OUTPUT_DIR / PROJECT_NAME
     
-    for block_dir in project_dir.glob("blocks*"):
+    for block_dir in PROJECT_DIR.glob("blocks*"):
         if not block_dir.is_dir():
             continue
         
@@ -106,7 +107,7 @@ def collect_block_type_data():
             file.readline()
             
             for line in file:
-                data_entry = parse_csv_line(line, block_dir)
+                data_entry = parse_csv_line(line)
                 if data_entry:
                     all_data.append(data_entry)
     
@@ -136,10 +137,6 @@ def calculate_block_ratios(data_df):
         ratio_col = f'ratio_{block_type}'
         count_col = f'count_{block_type}'
         
-        # Ensure count column exists (with 0 if missing)
-        if count_col not in data_df.columns:
-            data_df[count_col] = 0
-            
         # Calculate ratio: count / total_blocks
         data_df[ratio_col] = data_df[count_col] / data_df['total_blocks']
     
@@ -157,19 +154,18 @@ def analyze_ratio_correlation(data_df):
     # Calculate Pearson correlation for each block type ratio
     correlations = {}
     for block_type, ratio_col in zip(block_types, ratio_columns):
-        # Skip if all values are 0 (no variance)
-        if data_df[ratio_col].var() == 0:
+        # Use try/except to handle zero variance case more elegantly
+        try:
+            corr, p_value = pearsonr(data_df[ratio_col], data_df['time_elapsed'])
+            correlations[block_type] = {
+                'pearson_r': corr,
+                'p_value': p_value
+            }
+        except:
             correlations[block_type] = {
                 'pearson_r': 0,
                 'p_value': 1.0
             }
-            continue
-            
-        corr, p_value = pearsonr(data_df[ratio_col], data_df['time_elapsed'])
-        correlations[block_type] = {
-            'pearson_r': corr,
-            'p_value': p_value
-        }
     
     # Sort block types by absolute correlation value
     sorted_blocks = sorted(
@@ -179,9 +175,10 @@ def analyze_ratio_correlation(data_df):
     )
     
     # Create results dictionary
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     results = {
         'metadata': {
-            'timestamp': datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
+            'timestamp': timestamp,
             'sample_size': len(data_df)
         },
         'correlations': correlations,
@@ -201,22 +198,11 @@ def analyze_ratio_correlation(data_df):
 
 def save_results(results):
     """Save all results and visualizations."""
-    # Create output directories
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    
-    project_dir = OUTPUT_DIR / PROJECT_NAME
-    project_dir.mkdir(parents=True, exist_ok=True)
-    
-    plots_dir = project_dir / "plots"
-    results_dir = project_dir / "results"
-    plots_dir.mkdir(parents=True, exist_ok=True)
-    results_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Save results to files
+    # Extract timestamp
     timestamp = results["metadata"]["timestamp"]
     
     # Save as JSON
-    json_path = results_dir / f"block_ratio_{timestamp}.json"
+    json_path = RESULTS_DIR / f"block_ratio_{timestamp}.json"
     with open(json_path, 'w') as f:
         json.dump(results, f, indent=2)
     
@@ -230,16 +216,16 @@ def save_results(results):
         })
     
     corr_df = pd.DataFrame(corr_data)
-    csv_path = results_dir / f"block_ratio_{timestamp}.csv"
+    csv_path = RESULTS_DIR / f"block_ratio_{timestamp}.csv"
     corr_df.to_csv(csv_path, index=False)
     
     # Create and save visualizations
-    visualize_individual_blocks(results, plots_dir)
+    visualize_individual_blocks(results)
 
 
 # ============= VISUALIZATION LOGIC =============
 
-def visualize_individual_blocks(results, plots_dir):
+def visualize_individual_blocks(results):
     """Create separate scatter plots for each block type."""
     timestamp = results["metadata"]["timestamp"]
     time_elapsed = results['raw_data']['time_elapsed']
@@ -249,7 +235,7 @@ def visualize_individual_blocks(results, plots_dir):
         # Get data for this block type
         ratio_data = results['raw_data'][block_type]
         
-        # Skip if no variance in ratio values
+
         if len(set(ratio_data)) <= 1:
             continue
         
@@ -287,7 +273,7 @@ def visualize_individual_blocks(results, plots_dir):
         plt.grid(True, linestyle='--', alpha=0.3)
         
         # Save the plot
-        plt_path = plots_dir / f"block_{block_type}_{timestamp}.png"
+        plt_path = PLOTS_DIR / f"block_{block_type}_{timestamp}.png"
         plt.savefig(plt_path, dpi=300, bbox_inches='tight')
         plt.close()
     
@@ -299,7 +285,12 @@ def main():
     Run the block ratio analysis to determine how the relative proportion of 
     each block type affects generation time.
     """
+    # Create all necessary directories
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    PROJECT_DIR.mkdir(parents=True, exist_ok=True)
+    PLOTS_DIR.mkdir(parents=True, exist_ok=True)
+    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    
     run_new_benchmarks = input("Run new benchmarks? (y/n, default: n): ").strip().lower() == 'y'
     
     if run_new_benchmarks:
