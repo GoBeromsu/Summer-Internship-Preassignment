@@ -71,7 +71,7 @@ By adjusting the number of blocks (`block_num`) in MetaDrive while keeping all o
 | MetaDrive Component      | Mapped L1 Feature                     | Description                                                |
 | ------------------------ | ------------------------------------- | ---------------------------------------------------------- |
 | `block_num`              | Road network size                     | Controls overall map size; proxy for network structure     |
-| `block_type`             | Road curvature, ramps, junction types | Encodes topological features like curves and intersections |
+| `block_type`             | Road-level topology (e.g., curves, ramps, junctions) | Encodes topological features like curves and intersections |
 | `lane_num`, `lane_width` | Number and geometry of lanes          | Configures lane-level structure for each road segment      |
 
 This mapping serves as the basis for my experiment, where I use `block_num` to systematically induce variation in L1-level road structure
