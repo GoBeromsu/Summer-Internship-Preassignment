@@ -3,7 +3,7 @@ requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "Summer Internship Pre-assignment"
+name = "summer-internship-pre-assignment"
 version = "0.1.0"
 description = "Summer Internship Project"
 requires-python = ">=3.7"
