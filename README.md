@@ -273,9 +273,9 @@ This experiment shows that it is not just the number of blocks, but also what bl
 
 However, since MetaDrive uses a backtracking algorithm to generate a map, in addition to simple block combinations, topology connection failures or road network misconfigurations can be a major cause of increased generation time. In particular, block connection attempts are repeated up to T times, with a fallback procedure to revert to the previous network if all fail. This can cause generation time to spike or appear to be an infinite loop for certain structures. This is stated in the paper as follows.
 
-> "Maximally T trials will be conducted. If all of them fail, we remove the latest block and revert to the previous road network (Line 24)."
->
-> - _Li et al., 2021, MetaDrive: Composing Diverse Driving Scenarios for Generalizable Reinforcement Learning_.
+> "Maximally T trials will be conducted. If all of them fail, we remove the latest block and revert to the previous road network"
+> 
+> _Li et al., 2021, MetaDrive: Composing Diverse Driving Scenarios for Generalizable Reinforcement Learning_.
 
 In our current experiments, timeout handling is not explicitly implemented in the logic of the MetaDrive implementation, and it is **difficult to control timeout passively** as the inner loop can block for a long time. This limits the number of blocks that can be experimented with to **65 or less**.
 
