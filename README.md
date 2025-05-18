@@ -1,5 +1,15 @@
 # Summer Internship Pre-assignment
 
+## Table of Contents
+- [How I Approach the Problem](#how-i-approach-the-problem)
+- [What is a Good Map](#what-is-a-good-map)
+- [Planning](#planning)
+- [Experiments](#experiments)
+- [Conclusion](#conclusion)
+- [Limitation](#limitation)
+- [Future Work](#future-work)
+- [References](#references)
+
 ## How I Approach the Problem
 
 ### Framing the Assignment
