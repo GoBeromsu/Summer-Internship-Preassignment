@@ -11,9 +11,10 @@ import numpy as np
 import pandas as pd
 from scipy.stats import pearsonr
 
+from analysis.utils import build_docker_image
+
 # Constants
 PROJECT_NAME = "block_ratio"
-DOCKER_IMAGE = "metadrive"
 NUM_ITERATIONS = 500
 TARGET_BLOCK_COUNT = 10
 OUTPUT_DIR = Path("outputs")
@@ -23,22 +24,13 @@ RESULTS_DIR = PROJECT_DIR / "results"
 
 # ============= DOMAIN LOGIC =============
 
-def build_docker_image():
-    """Build the Docker image with the name 'metadrive'."""
-    subprocess.run(
-        ["docker", "build", "-t", DOCKER_IMAGE, "."],
-        check=True,
-        text=True,
-        capture_output=True
-    )
-
 
 def run_benchmark(block_count):
     """Run a benchmark with the specified block count."""
     cmd = [
         "docker", "run", "--rm",
         "-v", f"{OUTPUT_DIR.absolute()}:/app/outputs",
-        DOCKER_IMAGE,
+        "metadrive",
         "--map", str(block_count),
         "--num-scenarios", "1",
         "--benchmark", str(NUM_ITERATIONS),

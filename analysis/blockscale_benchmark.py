@@ -8,9 +8,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from analysis.utils import build_docker_image
+
 # Constants
 PROJECT_NAME = "blockscale_benchmark"
-DOCKER_IMAGE = "metadrive"
 NUM_ITERATIONS = 3
 BLOCK_RANGE = range(5, 65, 5)  # 5, 10, 15, ..., 60
 OUTPUT_DIR = Path("outputs")
@@ -19,17 +20,6 @@ PLOTS_DIR = PROJECT_DIR / "plots"
 RESULTS_DIR = PROJECT_DIR / "results"
 LINEAR_SCALE_DIR = PLOTS_DIR / "linear_scale"
 LOG_SCALE_DIR = PLOTS_DIR / "log_scale"
-
-
-def build_docker_image():
-    """Build the Docker image with the name 'metadrive'."""
-    subprocess.run(
-        ["docker", "build", "-t", DOCKER_IMAGE, "."],
-        check=True,
-        text=True,
-        capture_output=True
-    )
-    print(f"Docker image '{DOCKER_IMAGE}' built successfully")
 
 
 def run_benchmark(block_count):
@@ -41,7 +31,7 @@ def run_benchmark(block_count):
     cmd = [
         "docker", "run", "--rm",
         "-v", f"{OUTPUT_DIR.absolute()}:/app/outputs",
-        DOCKER_IMAGE,
+        "metadrive",
         "--map", str(block_count),
         "--num-scenarios", "1",
         "--benchmark", str(NUM_ITERATIONS),

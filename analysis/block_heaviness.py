@@ -14,9 +14,9 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
 from sklearn.preprocessing import StandardScaler
 
+from analysis.utils import build_docker_image
 # Constants
 PROJECT_NAME = "block_heaviness"
-DOCKER_IMAGE = "metadrive"
 NUM_ITERATIONS = 1550
 TARGET_BLOCK_COUNT = 15
 OUTPUT_DIR = Path("outputs")
@@ -26,22 +26,12 @@ RESULTS_DIR = PROJECT_DIR / "results"
 
 # ============= DOMAIN LOGIC =============
 
-def build_docker_image():
-    """Build the Docker image with the name 'metadrive'."""
-    subprocess.run(
-        ["docker", "build", "-t", DOCKER_IMAGE, "."],
-        check=True,
-        text=True,
-        capture_output=True
-    )
-
-
 def run_benchmark():
     """Run a benchmark with the specified block count."""
     cmd = [
         "docker", "run", "--rm",
         "-v", f"{OUTPUT_DIR.absolute()}:/app/outputs",
-        DOCKER_IMAGE,
+        "metadrive",
         "--map", str(TARGET_BLOCK_COUNT),
         "--num-scenarios", "1",
         "--benchmark", str(NUM_ITERATIONS),
