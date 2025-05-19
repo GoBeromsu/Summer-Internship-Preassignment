@@ -122,9 +122,9 @@ Random map generation in MetaDrive follows a built-in probabilistic distribution
 
 This experiment provides a simple yet informative baseline for assessing the effect of **increasing block_num** on **generation time** in MetaDrive.
 
-The following directories contain the analysis scripts and output data:
+The following locations contain the analysis script and output data:
 
-- `analysis/blockscale_benchmark`
+- `analysis/blockscale_benchmark.py`
 - `outputs/blockscale_benchmark`
 
 To understand both overall scaling trends and bottleneck behaviour, two parallel visualisation strategies were used:
@@ -169,9 +169,9 @@ This experiment quantitatively analyses how the presence of specific block types
 
 Although direct manual map composition is possible, this experiment focuses on random map generation, where specifying `block_num` triggers an internal block sampling and connection process beyond direct user control.
 
-The following directories contain the analysis scripts and output data:
+The following locations contain the analysis script and output data:
 
-- `analysis/block_heaviness`
+- `analysis/block_heaviness.py`
 - `outputs/block_heaviness`
 
 #### Setup
@@ -212,9 +212,9 @@ To analyze how the relative composition ratio of each block type in the procedur
 
 It is necessary to generate multiple maps to observe the relationship between the change in the ratio of each block type and the generation time. The **proportion within the total** may be more important than the actual number of block types.
 
-The following directories contain the analysis scripts and output data:
+The following locations contain the analysis script and output data:
 
-- `analysis/block_ratio`
+- `analysis/block_ratio.py`
 - `outputs/block_ratio`
 
 #### Setup
